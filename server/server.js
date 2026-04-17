@@ -49,6 +49,7 @@ app.use("/api", require("./routes/settings"));
 app.use("/api", require("./routes/users"));
 app.use("/api", require("./routes/push"));
 app.use("/api", require("./routes/backup"));
+app.use("/api", require("./routes/admin-files"));
 
 /* ===== SPA 回退 ===== */
 app.get("*", (req, res) => {

@@ -70,6 +70,16 @@ function initSocket() {
   });
 
   socket.on('membershipChanged', async () => { await loadChannels(); });
+
+  /* 管理员从附件管理删除了消息: 把每个频道里对应 id 移除 */
+  socket.on('messagesDeleted', d => {
+    const ids = new Set((d && d.ids) || []);
+    if (!ids.size) return;
+    Object.keys(msgStore).forEach(cid => {
+      const ch = msgStore[cid];
+      if (ch && ch.msgs) ch.msgs = ch.msgs.filter(m => !ids.has(m.id));
+    });
+  });
 }
 
 function showKicked(msg) {

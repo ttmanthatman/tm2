@@ -266,7 +266,7 @@ const App = {
 </div>
 <div v-if="ctxMenu" class="msg-menu" :style="{left:ctxMenu.x+'px',top:ctxMenu.y+'px'}"><div class="menu-item" @click="setReply(ctxMenu.msg)">💬 引用回复</div></div>
 <div v-if="currentModal==='imagePreview'" class="image-modal" @click="currentModal=''"><img :src="modalData.src" alt="预览"></div>
-<div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="currentModal='appearance'">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
+<div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="currentModal='appearance'">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="openFileMgmt()">📎 附件管理</button><button class="success" @click="openBgLibrary()">🖼️ 墙纸/视频库</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
 <div v-if="currentModal==='channelMgmt'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>📺 频道管理</h3><div class="section"><h4>新建频道</h4><input id="newChName" type="text" placeholder="频道名称"><input id="newChDesc" type="text" placeholder="频道描述 (选填)"><label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px"><input type="checkbox" id="newChPrivate"> 私有频道</label><button @click="doCreateChannel()">创建频道</button><p id="chCreateMsg" style="font-size:13px"></p></div><div class="section"><h4>已有频道</h4><div v-for="ch in modalData.allChannels||[]" :key="ch.id" class="ch-mgmt-item"><div class="ch-info"><div class="ch-name">{{ch.is_private?'🔒':''}} {{ch.name}}</div><div class="ch-meta">{{ch.description||'无描述'}} · {{ch._memberCount||0}}人</div></div><button style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#667eea" @click="openChannelPerm(ch)">权限</button><button v-if="!ch.is_default" style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#dc2626" @click="doDeleteChannel(ch)">删除</button></div></div><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
 <div v-if="currentModal==='channelPerm'" class="modal-overlay" @click.self="currentModal='channelMgmt'"><div class="modal"><h3>🔐 频道权限: {{modalData.permChannel?.name}}</h3><div class="section"><h4>添加成员</h4><select id="addMemberSel" style="width:70%;display:inline-block"><option v-for="u in modalData.nonMembers||[]" :key="u.username" :value="u.username">{{u.nickname||u.username}}</option></select><button style="width:28%;display:inline-block;margin-left:2%" @click="doAddMember()">添加</button></div><div class="section"><h4>当前成员</h4><div class="ch-perm-grid"><div v-for="m in modalData.permMembers||[]" :key="m.user_id" class="ch-perm-row"><span class="perm-user">{{m.nickname||m.username}}</span><select :value="m.role" @change="doChangeRole(m,$event.target.value)"><option value="owner">所有者</option><option value="admin">管理员</option><option value="member">成员</option><option value="viewer">只读</option></select><button style="width:auto;padding:4px 8px;font-size:11px;margin:0;background:#dc2626" @click="doRemoveMember(m)">移除</button></div></div></div><button class="close-btn" @click="currentModal='channelMgmt'">返回</button></div></div>
 <div v-if="currentModal==='notice'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>📌 置顶通知</h3><textarea id="noticeInput" rows="4" :value="store.notice.content||''" placeholder="输入通知内容..."></textarea><button @click="doSaveNotice()">发布</button><button class="danger" @click="doClearNotice()">撤下</button><p id="noticeMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
@@ -274,11 +274,103 @@ const App = {
 <div v-if="currentModal==='userMgmt'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>👥 用户管理</h3><div class="section"><h4>添加用户</h4><input id="newU" type="text" placeholder="用户名"><input id="newUP" type="password" placeholder="密码 (至少6位)"><input id="newUN" type="text" placeholder="昵称"><button @click="doAddUser()">添加</button><p id="addUserMsg" style="font-size:13px"></p></div><div class="section"><h4>用户列表</h4><div class="user-list"><div v-for="u in modalData.users||[]" :key="u.id" class="user-item"><div><span class="username">{{u.username}}</span><span v-if="u.is_admin" style="color:#667eea;font-size:11px;margin-left:4px">(管理员)</span><br><span class="nickname">{{u.nickname}}</span></div><div><button v-if="!u.is_admin" style="background:#dc2626" @click="doDeleteUser(u)">删除</button></div></div></div></div><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
 <div v-if="currentModal==='backup'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>💾 备份与还原</h3><div class="section"><h4>导出备份</h4><input type="date" id="bkStart"><input type="date" id="bkEnd"><button @click="doExportBackup()">下载备份</button></div><div class="section"><h4>还原备份</h4><input type="file" id="restoreFile" accept=".json"><button @click="doRestoreBackup()">还原</button></div><p id="backupMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
 <div v-if="currentModal==='deleteMsg'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>🗑️ 删除聊天记录</h3><p style="color:#dc2626;text-align:center">⚠️ 此操作不可恢复！</p><input type="date" id="delStart"><input type="date" id="delEnd"><button class="danger" @click="doDeleteMessages()">确认删除</button><p id="delMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
+
+<div v-if="currentModal==='fileMgmt'" class="modal-overlay" @click.self="currentModal='settings'">
+  <div class="modal modal-wide">
+    <h3>📎 附件管理</h3>
+    <div class="fm-toolbar">
+      <select v-model="modalData.filesFilter.type" @change="loadFiles()">
+        <option value="">全部类型</option>
+        <option value="image">仅图片</option>
+        <option value="file">仅文件</option>
+      </select>
+      <input type="text" v-model="modalData.filesFilter.q" placeholder="按文件名搜索…" @keyup.enter="loadFiles()">
+      <button @click="loadFiles()" style="width:auto!important;margin:0!important;padding:8px 14px!important;font-size:13px!important">搜索</button>
+      <span class="fm-stat">{{(modalData.files||[]).length}} 项 · 共 {{fmtSize(modalData.filesTotalSize||0)}}</span>
+    </div>
+    <div class="fm-bulkbar">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#3730a3;font-weight:500">
+        <input type="checkbox" :checked="(modalData.filesSelected||new Set()).size===(modalData.files||[]).length && (modalData.files||[]).length>0" @change="toggleFileSelAll()">
+        全选
+      </label>
+      <span class="fm-bulkinfo">已选 {{(modalData.filesSelected||new Set()).size}} 项</span>
+      <button class="success" @click="doDownloadFiles()">⬇️ 下载</button>
+      <button class="danger" @click="doDeleteFiles()">🗑️ 删除</button>
+    </div>
+    <div class="fm-list">
+      <div v-if="!(modalData.files||[]).length" class="fm-empty">暂无附件</div>
+      <div v-for="f in modalData.files||[]" :key="f.id" class="fm-row" :class="{sel:isFileSel(f.id),missing:!f.exists}" @click="toggleFileSel(f.id)">
+        <input type="checkbox" :checked="isFileSel(f.id)" @click.stop="toggleFileSel(f.id)">
+        <img v-if="f.type==='image' && f.exists" class="fm-thumb is-img" :src="API+'/uploads/'+encodeURIComponent(f.file_path)" alt="">
+        <div v-else class="fm-thumb">{{fileIcon(f)}}</div>
+        <div class="fm-info">
+          <div class="fm-name" :title="f.file_name">{{f.file_name}}</div>
+          <div class="fm-meta">{{fmtSize(f.file_size)}} · {{f.nickname||f.username}} · #{{f.channel_name||f.channel_id}} · {{fmtTime(f.created_at)}}</div>
+        </div>
+        <a v-if="f.exists" class="fm-action" :href="API+'/uploads/'+encodeURIComponent(f.file_path)" :download="f.file_name" @click.stop="">下载</a>
+      </div>
+    </div>
+    <p v-if="modalData.filesMsg" style="font-size:13px;text-align:center;margin-top:10px">{{modalData.filesMsg}}</p>
+    <button class="close-btn" @click="currentModal='settings'">返回</button>
+  </div>
+</div>
+
+<div v-if="currentModal==='bgLibrary'" class="modal-overlay" @click.self="currentModal='settings'">
+  <div class="modal modal-wide">
+    <h3>🖼️ 墙纸 / 视频库</h3>
+    <div class="section" style="padding-bottom:10px">
+      <h4 style="margin-top:0">当前使用中</h4>
+      <div class="slot-status">
+        <div v-for="s in modalData.bgSlots||[]" :key="s.key" class="slot-row">
+          <span class="slot-label">{{s.label}}:</span>
+          <span class="slot-val" :class="{empty:!(modalData.bgCurrent||{})[s.key]}" :title="(modalData.bgCurrent||{})[s.key]||'未设置'">{{(modalData.bgCurrent||{})[s.key]||'未设置'}}</span>
+          <button v-if="(modalData.bgCurrent||{})[s.key]" class="slot-clear" @click="doApplyBg(s.key,'')">清空</button>
+        </div>
+      </div>
+    </div>
+    <div class="fm-toolbar">
+      <span class="fm-stat" style="margin-left:0">{{(modalData.bgItems||[]).length}} 个文件 · 共 {{fmtSize(modalData.bgTotalSize||0)}}</span>
+    </div>
+    <div class="fm-bulkbar">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#3730a3;font-weight:500">
+        <input type="checkbox" :checked="(modalData.bgSelected||new Set()).size===(modalData.bgItems||[]).length && (modalData.bgItems||[]).length>0" @change="toggleBgSelAll()">
+        全选
+      </label>
+      <span class="fm-bulkinfo">已选 {{(modalData.bgSelected||new Set()).size}} 个</span>
+      <button class="danger" @click="doDeleteBg(false)">🗑️ 删除</button>
+    </div>
+    <div v-if="!(modalData.bgItems||[]).length" class="fm-empty" style="border:1px solid #eee;border-radius:8px">墙纸库为空。可在「外观定制」上传后,这里会显示已上传的素材以便复用。</div>
+    <div v-else class="bg-grid">
+      <div v-for="b in modalData.bgItems||[]" :key="b.filename" class="bg-card" :class="{sel:isBgSel(b.filename)}">
+        <div class="bg-check" @click="toggleBgSel(b.filename)">✓</div>
+        <span class="bg-kind">{{b.kind==='image'?'图':b.kind==='video'?'视频':'?'}}</span>
+        <img v-if="b.kind==='image'" class="bg-thumb" :src="bgPreviewUrl(b.filename)" :alt="b.filename" @click="toggleBgSel(b.filename)">
+        <video v-else-if="b.kind==='video'" class="bg-thumb" :src="bgPreviewUrl(b.filename)" muted preload="metadata" @click="toggleBgSel(b.filename)"></video>
+        <div v-else class="bg-thumb placeholder" @click="toggleBgSel(b.filename)">📄</div>
+        <div class="bg-foot">
+          <div class="bg-fname" :title="b.filename">{{b.filename}}</div>
+          <div class="bg-fmeta">{{fmtSize(b.size)}}</div>
+          <div v-if="b.used_by && b.used_by.length" class="bg-used">
+            <span v-for="u in b.used_by" :key="u.key" class="bg-used-tag">{{u.label}}</span>
+          </div>
+          <select class="bg-apply" @change="doApplyBg($event.target.value,b.filename);$event.target.value=''">
+            <option value="">应用到 ▾</option>
+            <option v-for="s in modalData.bgSlots||[]" :key="s.key" :value="s.key" :disabled="s.kind!==b.kind">{{s.label}}{{s.kind!==b.kind?' (类型不符)':''}}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <p v-if="modalData.bgMsg" style="font-size:13px;text-align:center;margin-top:10px">{{modalData.bgMsg}}</p>
+    <button class="close-btn" @click="currentModal='settings'">返回</button>
+  </div>
+</div>
+
 <div v-if="currentModal==='chainNew'" class="modal-overlay" @click.self="currentModal=''"><div class="modal" style="max-width:400px"><h3>🚂 发起接龙</h3><label class="field-label">接龙话题</label><input v-model="chainTopic" type="text" placeholder="例如：明天团建午餐吃什么？"><label class="field-label">补充说明 (选填)</label><textarea v-model="chainDesc" rows="2" placeholder="规则、选项等..."></textarea><div style="display:flex;gap:10px;margin-top:10px"><button class="secondary" style="flex:1" @click="currentModal=''">取消</button><button style="flex:1" @click="sendChain(chainTopic.trim(),chainDesc.trim())">发起</button></div></div></div>
 `,
 
   methods: {
     ...AdminMethods,
+    ...FilesAdminMethods,
 
     getReplyPreview(replyId) {
       const ch = msgStore[store.currentChannelId]; if (!ch) return '';

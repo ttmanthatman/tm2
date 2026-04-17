@@ -1,0 +1,61 @@
+/* ===== 附件管理 / 墙纸库 共用 ===== */
+.modal-wide{max-width:760px}
+.fm-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;padding:10px;background:#f9f9f9;border-radius:8px}
+.fm-toolbar select,.fm-toolbar input[type="text"]{flex:1;min-width:120px;padding:8px 10px;margin:0!important;font-size:13px}
+.fm-toolbar .fm-stat{font-size:12px;color:#666;margin-left:auto;white-space:nowrap}
+.fm-bulkbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;margin-bottom:10px}
+.fm-bulkbar .fm-bulkinfo{flex:1;font-size:13px;color:#3730a3;font-weight:500}
+.fm-bulkbar button{width:auto!important;margin:0!important;padding:6px 12px!important;font-size:12px!important}
+
+/* ===== 附件列表 ===== */
+.fm-list{max-height:48vh;overflow-y:auto;border:1px solid #eee;border-radius:8px}
+.fm-empty{padding:30px;text-align:center;color:#999;font-size:13px}
+.fm-row{display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.fm-row:last-child{border-bottom:none}
+.fm-row:hover{background:#fafafa}
+.fm-row.sel{background:#eef2ff}
+.fm-row input[type="checkbox"]{width:16px;height:16px;flex-shrink:0;cursor:pointer}
+.fm-thumb{width:42px;height:42px;flex-shrink:0;border-radius:6px;object-fit:cover;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid #eee}
+.fm-thumb.is-img{padding:0}
+.fm-info{flex:1;min-width:0}
+.fm-name{font-size:13px;font-weight:500;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fm-meta{font-size:11px;color:#888;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fm-row .fm-action{flex-shrink:0;color:#667eea;font-size:12px;text-decoration:none;padding:4px 8px;border-radius:4px}
+.fm-row .fm-action:hover{background:#eef2ff}
+.fm-row.missing .fm-name{color:#dc2626;text-decoration:line-through}
+.fm-row.missing .fm-meta::after{content:" · 文件已丢失";color:#dc2626}
+
+/* ===== 墙纸库 网格 ===== */
+.bg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-height:48vh;overflow-y:auto;padding:4px}
+.bg-card{position:relative;border:2px solid #eee;border-radius:10px;overflow:hidden;background:#fafafa;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.bg-card:hover{border-color:#c7d2fe}
+.bg-card.sel{border-color:#667eea;box-shadow:0 0 0 2px rgba(102,126,234,.15)}
+.bg-card .bg-thumb{width:100%;aspect-ratio:16/10;background:#222;display:block;object-fit:cover}
+.bg-card .bg-thumb.placeholder{display:flex;align-items:center;justify-content:center;color:#888;font-size:32px;background:#eee}
+.bg-card .bg-check{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.92);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:14px;color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.bg-card.sel .bg-check{background:#667eea;color:#fff}
+.bg-card .bg-kind{position:absolute;top:6px;right:6px;font-size:10px;background:rgba(0,0,0,.55);color:#fff;padding:2px 6px;border-radius:10px}
+.bg-card .bg-foot{padding:6px 8px;background:#fff}
+.bg-card .bg-fname{font-size:11px;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bg-card .bg-fmeta{font-size:10px;color:#999;margin-top:1px}
+.bg-card .bg-used{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.bg-card .bg-used-tag{font-size:9px;background:#dcfce7;color:#166534;padding:1px 5px;border-radius:8px;font-weight:600}
+.bg-card .bg-apply{display:block;width:100%;margin-top:6px;padding:5px;font-size:11px;border:1px solid #ddd;border-radius:5px;background:#fff;color:#333;cursor:pointer}
+.bg-card .bg-apply:hover{border-color:#667eea;color:#667eea}
+
+/* ===== 槽位当前状态 ===== */
+.slot-status{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.slot-status .slot-row{display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f9f9f9;border-radius:6px;font-size:12px;min-width:0}
+.slot-status .slot-row .slot-label{color:#666;flex-shrink:0}
+.slot-status .slot-row .slot-val{flex:1;font-weight:500;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot-status .slot-row .slot-val.empty{color:#aaa;font-weight:400}
+.slot-status .slot-row .slot-clear{flex-shrink:0;width:auto!important;padding:2px 6px!important;margin:0!important;font-size:10px!important;background:#f0f0f0!important;color:#666!important;border:none}
+.slot-status .slot-row .slot-clear:hover{background:#e0e0e0!important}
+
+/* ===== 小屏适配 ===== */
+@media (max-width:640px){
+  .modal-wide{max-width:100%;width:96%}
+  .bg-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+  .slot-status{grid-template-columns:1fr}
+  .fm-toolbar .fm-stat{margin-left:0;width:100%}
+}
