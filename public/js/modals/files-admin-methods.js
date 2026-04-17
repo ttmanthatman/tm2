@@ -12,6 +12,12 @@
  *   bgCurrent        当前各槽位引用 {bg_image:'xxx',...}
  *   bgSelected       Set of filename
  *   bgMsg / filesMsg 提示信息
+ *
+ * 本文件相对仓库版本的改动:
+ *   openBgLibrary() 在 currentModal 切换之前预先把所有相关键写进 modalData,
+ *   让 Vue 响应式 proxy 登记这些 key. 否则模板首渲染时 bgItems 是未知键,
+ *   后续 loadBgLibrary 写入时不会触发重渲染, 造成"库里看不到素材"的 bug.
+ *   (对照 openAppearance() 里同款防御性写法.)
  */
 const FilesAdminMethods = {
 
@@ -124,8 +130,17 @@ const FilesAdminMethods = {
   /* ============== 墙纸 / 视频库 ============== */
 
   async openBgLibrary() {
-    this.modalData.bgSelected = new Set();
-    this.modalData.bgMsg = '';
+    /* 关键: 必须在切换 currentModal 之前, 先把所有相关键写进 modalData,
+     * 让 Vue 响应式 proxy 登记这些 key.
+     * 否则模板首次渲染时 bgItems / bgSlots / bgCurrent 都是未知键,
+     * 后续 loadBgLibrary 写入时 Vue 不触发重渲染 -> 永远显示"墙纸库为空".
+     * (对照 openAppearance() 里的同款防御性写法.) */
+    this.modalData.bgItems     = [];
+    this.modalData.bgTotalSize = 0;
+    this.modalData.bgSlots     = [];
+    this.modalData.bgCurrent   = {};
+    this.modalData.bgSelected  = new Set();
+    this.modalData.bgMsg       = '';
     this.currentModal = 'bgLibrary';
     await this.loadBgLibrary();
   },
@@ -135,10 +150,11 @@ const FilesAdminMethods = {
       const r = await fetch(API + '/api/admin/backgrounds', { headers: authH() });
       if (!r.ok) { this.modalData.bgMsg = '加载失败'; return; }
       const d = await r.json();
-      this.modalData.bgItems = d.items || [];
+      /* 用全新的数组/对象实例, 避免某些情况下 Vue 没识别到引用变更 */
+      this.modalData.bgItems     = (d.items || []).slice();
       this.modalData.bgTotalSize = d.total_size || 0;
-      this.modalData.bgSlots = d.slots || [];
-      this.modalData.bgCurrent = d.current || {};
+      this.modalData.bgSlots     = (d.slots || []).slice();
+      this.modalData.bgCurrent   = Object.assign({}, d.current || {});
       const names = new Set((d.items || []).map(x => x.filename));
       const sel = this.modalData.bgSelected || new Set();
       [...sel].forEach(n => { if (!names.has(n)) sel.delete(n); });

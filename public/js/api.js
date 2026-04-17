@@ -2,8 +2,12 @@
  * TeamChat API 客户端
  * 频道/消息加载、外观配置
  *
- * 本文件相对仓库版本只改动了 applyAppearance(): 新增了 bg_type/login_bg_type === 'video'
- * 的分支, 通过动态注入 <video class="tc-bg-video"> 实现视频墙纸. 其余函数未改.
+ * 本文件相对仓库版本的改动:
+ *   1) applyAppearance(): bg_type === 'video' 时把 <video> 挂到 .messages-wrapper
+ *      (原来挂在 .messages 里, 会被滚动内容一起顶走).
+ *   2) _ensureBgVideoCss(): 选择器改成匹配 .messages-wrapper > .messages,
+ *      并强制 .messages 自身透明, 让视频层真正显出来.
+ *   3) 图片背景模式加 background-attachment:local, 防止图片也跟着滚.
  */
 
 /* ===== 频道 ===== */
@@ -64,14 +68,20 @@ async function loadAppearance() {
   } catch(e) {}
 }
 
-/* ----- 视频墙纸辅助: 注入一次全局 CSS, 保证消息/登录内容盖在 <video> 之上 ----- */
+/* ----- 视频墙纸辅助: 注入一次全局 CSS ----- */
 function _ensureBgVideoCss() {
   if (document.getElementById('tc-bg-video-css')) return;
   const s = document.createElement('style');
   s.id = 'tc-bg-video-css';
   s.textContent =
-    '.tc-bg-video{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block;background:#000}' +
-    '.messages > *:not(.tc-bg-video){position:relative;z-index:1}' +
+    /* 视频本体: 绝对定位铺满父容器, 不抢事件 */
+    '.tc-bg-video{position:absolute;inset:0;width:100%;height:100%;' +
+      'z-index:0;pointer-events:none;display:block;background:#000}' +
+    /* 关键: 视频模式下 .messages 自身必须透明才能看见 wrapper 里的视频,
+     * 同时保持 z-index:1 让消息浮在视频之上 */
+    '.messages-wrapper > .messages{position:relative;z-index:1}' +
+    '.messages-wrapper.tc-has-bg-video > .messages{background:transparent !important}' +
+    /* 登录页保持原逻辑: 视频是 login-page 的直接子元素 */
     '.login-page > *:not(.tc-bg-video){position:relative;z-index:1}';
   document.head.appendChild(s);
 }
@@ -116,6 +126,7 @@ function _mountBgVideo(host, src, mode) {
 }
 
 function _removeBgVideo(host) {
+  if (!host) return;
   const old = host.querySelector(':scope > .tc-bg-video');
   if (old) old.remove();
 }
@@ -131,27 +142,42 @@ function applyAppearance(d) {
     if (d.send_color) sb.style.background = d.send_color;
   }
 
-  /* ===== 聊天背景 ===== */
-  const ml = document.querySelector('.messages');
-  if (ml) {
+  /* ===== 聊天背景 =====
+   * 视频必须挂到 .messages-wrapper (overflow:hidden, 不滚动),
+   * 不能挂到 .messages (overflow-y:auto, 绝对定位子元素会跟内容滚走).
+   */
+  const wrap = document.querySelector('.messages-wrapper');
+  const ml   = document.querySelector('.messages');
+  if (wrap && ml) {
     if (d.bg_type === 'video' && d.bg_video) {
+      /* 视频模式 */
+      wrap.classList.add('tc-has-bg-video');
+      wrap.style.backgroundColor = d.bg_color || '#000';
       ml.style.backgroundImage = 'none';
-      ml.style.backgroundColor = d.bg_color || '#000';
+      ml.style.backgroundColor = 'transparent';
       _mountBgVideo(
-        ml,
+        wrap,
         API + '/backgrounds/' + encodeURIComponent(d.bg_video),
         d.bg_video_mode
       );
     } else if (d.bg_type === 'image' && d.bg_image) {
-      _removeBgVideo(ml);
-      ml.style.backgroundImage = 'url(' + API + '/backgrounds/' + encodeURIComponent(d.bg_image) + ')';
-      ml.style.backgroundSize = d.bg_mode === 'tile' ? 'auto' : 'cover';
+      /* 图片模式 */
+      wrap.classList.remove('tc-has-bg-video');
+      wrap.style.backgroundColor = '';
+      _removeBgVideo(wrap);
+      ml.style.backgroundImage    = 'url(' + API + '/backgrounds/' + encodeURIComponent(d.bg_image) + ')';
+      ml.style.backgroundSize     = d.bg_mode === 'tile' ? 'auto' : 'cover';
       ml.style.backgroundPosition = 'center';
-      ml.style.backgroundRepeat = d.bg_mode === 'tile' ? 'repeat' : 'no-repeat';
-      ml.style.backgroundColor = d.bg_color || '#f0f2f5';
+      ml.style.backgroundRepeat   = d.bg_mode === 'tile' ? 'repeat' : 'no-repeat';
+      ml.style.backgroundAttachment = 'local';   /* 防止图片也跟着滚 */
+      ml.style.backgroundColor    = d.bg_color || '#f0f2f5';
     } else {
-      _removeBgVideo(ml);
+      /* 纯色 / 默认 */
+      wrap.classList.remove('tc-has-bg-video');
+      wrap.style.backgroundColor = '';
+      _removeBgVideo(wrap);
       ml.style.backgroundImage = 'none';
+      ml.style.backgroundAttachment = '';
       ml.style.backgroundColor = d.bg_color || '#f0f2f5';
     }
   }
