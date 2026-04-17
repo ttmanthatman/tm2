@@ -266,11 +266,332 @@ const App = {
 </div>
 <div v-if="ctxMenu" class="msg-menu" :style="{left:ctxMenu.x+'px',top:ctxMenu.y+'px'}"><div class="menu-item" @click="setReply(ctxMenu.msg)">💬 引用回复</div></div>
 <div v-if="currentModal==='imagePreview'" class="image-modal" @click="currentModal=''"><img :src="modalData.src" alt="预览"></div>
-<div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="currentModal='appearance'">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="openFileMgmt()">📎 附件管理</button><button class="success" @click="openBgLibrary()">🖼️ 墙纸/视频库</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
+<div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="openAppearance()">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="openFileMgmt()">📎 附件管理</button><button class="success" @click="openBgLibrary()">🖼️ 墙纸/视频库</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
 <div v-if="currentModal==='channelMgmt'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>📺 频道管理</h3><div class="section"><h4>新建频道</h4><input id="newChName" type="text" placeholder="频道名称"><input id="newChDesc" type="text" placeholder="频道描述 (选填)"><label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px"><input type="checkbox" id="newChPrivate"> 私有频道</label><button @click="doCreateChannel()">创建频道</button><p id="chCreateMsg" style="font-size:13px"></p></div><div class="section"><h4>已有频道</h4><div v-for="ch in modalData.allChannels||[]" :key="ch.id" class="ch-mgmt-item"><div class="ch-info"><div class="ch-name">{{ch.is_private?'🔒':''}} {{ch.name}}</div><div class="ch-meta">{{ch.description||'无描述'}} · {{ch._memberCount||0}}人</div></div><button style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#667eea" @click="openChannelPerm(ch)">权限</button><button v-if="!ch.is_default" style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#dc2626" @click="doDeleteChannel(ch)">删除</button></div></div><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
 <div v-if="currentModal==='channelPerm'" class="modal-overlay" @click.self="currentModal='channelMgmt'"><div class="modal"><h3>🔐 频道权限: {{modalData.permChannel?.name}}</h3><div class="section"><h4>添加成员</h4><select id="addMemberSel" style="width:70%;display:inline-block"><option v-for="u in modalData.nonMembers||[]" :key="u.username" :value="u.username">{{u.nickname||u.username}}</option></select><button style="width:28%;display:inline-block;margin-left:2%" @click="doAddMember()">添加</button></div><div class="section"><h4>当前成员</h4><div class="ch-perm-grid"><div v-for="m in modalData.permMembers||[]" :key="m.user_id" class="ch-perm-row"><span class="perm-user">{{m.nickname||m.username}}</span><select :value="m.role" @change="doChangeRole(m,$event.target.value)"><option value="owner">所有者</option><option value="admin">管理员</option><option value="member">成员</option><option value="viewer">只读</option></select><button style="width:auto;padding:4px 8px;font-size:11px;margin:0;background:#dc2626" @click="doRemoveMember(m)">移除</button></div></div></div><button class="close-btn" @click="currentModal='channelMgmt'">返回</button></div></div>
 <div v-if="currentModal==='notice'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>📌 置顶通知</h3><textarea id="noticeInput" rows="4" :value="store.notice.content||''" placeholder="输入通知内容..."></textarea><button @click="doSaveNotice()">发布</button><button class="danger" @click="doClearNotice()">撤下</button><p id="noticeMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
-<div v-if="currentModal==='appearance'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>🎨 外观定制</h3><div class="section"><label class="field-label">登录标题</label><input id="appLT" type="text" :value="store.appearance.login_title||''" placeholder="团队聊天室" maxlength="30"><label class="field-label">聊天标题</label><input id="appCT" type="text" :value="store.appearance.chat_title||''" placeholder="团队聊天" maxlength="30"></div><div class="section"><label class="field-label">发送按钮文字</label><input id="appST" type="text" :value="store.appearance.send_text||''" placeholder="发送" maxlength="10"><label class="field-label">发送按钮颜色</label><div class="color-row"><input type="color" id="appSC" :value="store.appearance.send_color||'#667eea'"><span style="font-size:13px;color:#666">{{store.appearance.send_color||'#667eea'}}</span></div></div><div class="section"><label class="field-label">聊天背景颜色</label><div class="color-row"><input type="color" id="appBG" :value="store.appearance.bg_color||'#f0f2f5'"><span style="font-size:13px;color:#666">{{store.appearance.bg_color||'#f0f2f5'}}</span></div></div><button @click="doSaveAppearance()">💾 保存并应用</button><p id="appearMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
+<div v-if="currentModal==='appearance'" class="modal-overlay" @click.self="currentModal='settings'">
+  <div class="modal modal-wide">
+    <h3>🎨 外观定制</h3>
+
+    <!-- ===== 实时预览 ===== -->
+    <div class="section appear-preview-section">
+      <h4>👁️ 实时预览 <span class="preview-hint">(下面调整时此处同步更新)</span></h4>
+
+      <div class="appear-preview-row">
+        <!-- 登录页迷你预览 -->
+        <div class="appear-preview-card">
+          <div class="appear-preview-label">登录页</div>
+          <div class="appear-preview-stage">
+            <!-- 背景层 -->
+            <div v-if="modalData.appDraft.login_bg_type==='gradient'"
+                 class="appear-preview-bg"
+                 :style="{background:'linear-gradient(135deg,'+(modalData.appDraft.login_bg_color1||'#667eea')+','+(modalData.appDraft.login_bg_color2||'#764ba2')+')'}"></div>
+            <div v-else-if="modalData.appDraft.login_bg_type==='color'"
+                 class="appear-preview-bg"
+                 :style="{background:modalData.appDraft.login_bg_color1||'#667eea'}"></div>
+            <img v-else-if="modalData.appDraft.login_bg_type==='image' && modalData.appDraft.login_bg_image"
+                 class="appear-preview-bg"
+                 :src="appBgPreviewUrl(modalData.appDraft.login_bg_image)"
+                 :style="bgFitStyle(modalData.appDraft.login_bg_mode)">
+            <video v-else-if="modalData.appDraft.login_bg_type==='video' && modalData.appDraft.login_bg_video"
+                   class="appear-preview-bg"
+                   :src="appBgPreviewUrl(modalData.appDraft.login_bg_video)"
+                   :style="bgFitStyle(modalData.appDraft.login_bg_video_mode)"
+                   muted autoplay loop playsinline></video>
+            <div v-else class="appear-preview-bg appear-preview-empty">未设置</div>
+            <!-- 登录卡片占位 -->
+            <div class="appear-preview-card-fake">
+              <div class="appear-preview-title">{{modalData.appDraft.login_title||'团队聊天室'}}</div>
+              <div class="appear-preview-input"></div>
+              <div class="appear-preview-input"></div>
+              <div class="appear-preview-btn"
+                   :style="{background:modalData.appDraft.send_color||'#667eea'}">登录</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 聊天页迷你预览 -->
+        <div class="appear-preview-card">
+          <div class="appear-preview-label">聊天页</div>
+          <div class="appear-preview-stage">
+            <div v-if="modalData.appDraft.bg_type==='color'"
+                 class="appear-preview-bg"
+                 :style="{background:modalData.appDraft.bg_color||'#f0f2f5'}"></div>
+            <img v-else-if="modalData.appDraft.bg_type==='image' && modalData.appDraft.bg_image"
+                 class="appear-preview-bg"
+                 :src="appBgPreviewUrl(modalData.appDraft.bg_image)"
+                 :style="bgFitStyle(modalData.appDraft.bg_mode)">
+            <video v-else-if="modalData.appDraft.bg_type==='video' && modalData.appDraft.bg_video"
+                   class="appear-preview-bg"
+                   :src="appBgPreviewUrl(modalData.appDraft.bg_video)"
+                   :style="bgFitStyle(modalData.appDraft.bg_video_mode)"
+                   muted autoplay loop playsinline></video>
+            <div v-else class="appear-preview-bg appear-preview-empty"
+                 :style="{background:modalData.appDraft.bg_color||'#f0f2f5'}"></div>
+            <!-- 聊天气泡占位 -->
+            <div class="appear-preview-chat">
+              <div class="appear-preview-bubble other">{{modalData.appDraft.chat_title||'TeamChat'}}</div>
+              <div class="appear-preview-bubble my"
+                   :style="{background:modalData.appDraft.send_color||'#667eea'}">你好 👋</div>
+            </div>
+            <!-- 输入栏占位 -->
+            <div class="appear-preview-inputbar">
+              <div class="appear-preview-textfield"></div>
+              <div class="appear-preview-sendbtn"
+                   :style="{background:modalData.appDraft.send_color||'#667eea'}">{{modalData.appDraft.send_text||'发送'}}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 文字 / 按钮 ===== -->
+    <div class="section">
+      <h4>📝 文字</h4>
+      <label class="field-label">登录页标题</label>
+      <input type="text" v-model="modalData.appDraft.login_title" placeholder="团队聊天室" maxlength="30">
+      <label class="field-label">侧栏 / 聊天标题</label>
+      <input type="text" v-model="modalData.appDraft.chat_title" placeholder="TeamChat" maxlength="30">
+      <label class="field-label">发送按钮文字</label>
+      <input type="text" v-model="modalData.appDraft.send_text" placeholder="发送" maxlength="10">
+      <label class="field-label">发送按钮颜色</label>
+      <div class="color-row">
+        <input type="color" v-model="modalData.appDraft.send_color">
+        <span style="font-size:13px;color:#666">{{modalData.appDraft.send_color}}</span>
+      </div>
+    </div>
+
+    <!-- ===== 聊天背景 ===== -->
+    <div class="section">
+      <h4>💬 聊天背景</h4>
+      <label class="field-label">类型</label>
+      <div class="radio-group">
+        <label><input type="radio" value="color" v-model="modalData.appDraft.bg_type"> 纯色</label>
+        <label><input type="radio" value="image" v-model="modalData.appDraft.bg_type"> 图片</label>
+        <label><input type="radio" value="video" v-model="modalData.appDraft.bg_type"> 视频</label>
+      </div>
+
+      <!-- 颜色 (任意类型下都可作为兜底底色) -->
+      <label class="field-label">底色 {{modalData.appDraft.bg_type==='color'?'':' (兜底, 图片/视频透明区域显示)'}}</label>
+      <div class="color-row">
+        <input type="color" v-model="modalData.appDraft.bg_color">
+        <span style="font-size:13px;color:#666">{{modalData.appDraft.bg_color}}</span>
+      </div>
+
+      <!-- 图片 -->
+      <div v-if="modalData.appDraft.bg_type==='image'" class="bg-config-block">
+        <label class="field-label">已选: <span class="bg-current-name">{{modalData.appDraft.bg_image||'(未选择)'}}</span></label>
+        <div class="bg-current-preview" v-if="modalData.appDraft.bg_image">
+          <img :src="appBgPreviewUrl(modalData.appDraft.bg_image)" alt="">
+          <button class="bg-current-clear" @click="pickAppBg('bg_image','')" type="button">清除</button>
+        </div>
+
+        <label class="field-label">从已上传素材中选择</label>
+        <div v-if="!appBgImages().length" class="bg-picker-empty">素材库暂无图片, 点下面「上传新图片」即可添加。</div>
+        <div v-else class="bg-picker-grid">
+          <div v-for="b in appBgImages()" :key="b.filename"
+               class="bg-picker-item"
+               :class="{sel:modalData.appDraft.bg_image===b.filename}"
+               @click="pickAppBg('bg_image',b.filename)"
+               :title="b.filename+' ('+fmtSize(b.size)+')'">
+            <img :src="appBgPreviewUrl(b.filename)" alt="">
+            <span v-if="modalData.appDraft.bg_image===b.filename" class="bg-picker-tick">✓</span>
+          </div>
+        </div>
+
+        <input type="file" accept="image/*" hidden ref="bgImgFile" @change="doAppBgUpload($event,'bg_image')">
+        <button class="secondary" @click="$refs.bgImgFile.click()" :disabled="modalData.appUploading==='bg_image'">
+          {{modalData.appUploading==='bg_image'?'⏳ 上传中…':'📤 上传新图片'}}
+        </button>
+        <label class="field-label">适配方式</label>
+        <div class="radio-group">
+          <label><input type="radio" value="fill"    v-model="modalData.appDraft.bg_mode"> 填充 (cover)</label>
+          <label><input type="radio" value="fit"     v-model="modalData.appDraft.bg_mode"> 适应 (contain)</label>
+          <label><input type="radio" value="stretch" v-model="modalData.appDraft.bg_mode"> 拉伸 (100%×100%)</label>
+          <label><input type="radio" value="tile"    v-model="modalData.appDraft.bg_mode"> 平铺</label>
+        </div>
+      </div>
+
+      <!-- 视频 -->
+      <div v-if="modalData.appDraft.bg_type==='video'" class="bg-config-block">
+        <label class="field-label">已选: <span class="bg-current-name">{{modalData.appDraft.bg_video||'(未选择)'}}</span></label>
+        <div class="bg-current-preview" v-if="modalData.appDraft.bg_video">
+          <video :src="appBgPreviewUrl(modalData.appDraft.bg_video)" muted autoplay loop playsinline></video>
+          <button class="bg-current-clear" @click="pickAppBg('bg_video','')" type="button">清除</button>
+        </div>
+
+        <label class="field-label">从已上传素材中选择</label>
+        <div v-if="!appBgVideos().length" class="bg-picker-empty">素材库暂无视频, 点下面「上传新视频」即可添加。</div>
+        <div v-else class="bg-picker-grid">
+          <div v-for="b in appBgVideos()" :key="b.filename"
+               class="bg-picker-item"
+               :class="{sel:modalData.appDraft.bg_video===b.filename}"
+               @click="pickAppBg('bg_video',b.filename)"
+               :title="b.filename+' ('+fmtSize(b.size)+')'">
+            <video :src="appBgPreviewUrl(b.filename)" muted preload="metadata"></video>
+            <span class="bg-picker-kind">视频</span>
+            <span v-if="modalData.appDraft.bg_video===b.filename" class="bg-picker-tick">✓</span>
+          </div>
+        </div>
+
+        <input type="file" accept="video/*" hidden ref="bgVidFile" @change="doAppBgUpload($event,'bg_video')">
+        <button class="secondary" @click="$refs.bgVidFile.click()" :disabled="modalData.appUploading==='bg_video'">
+          {{modalData.appUploading==='bg_video'?'⏳ 上传中…':'📤 上传新视频'}}
+        </button>
+        <label class="field-label">适配方式</label>
+        <div class="radio-group">
+          <label><input type="radio" value="fill"    v-model="modalData.appDraft.bg_video_mode"> 填充 (cover)</label>
+          <label><input type="radio" value="fit"     v-model="modalData.appDraft.bg_video_mode"> 适应 (contain)</label>
+          <label><input type="radio" value="stretch" v-model="modalData.appDraft.bg_video_mode"> 拉伸 (fill)</label>
+        </div>
+        <p class="hint">视频背景将自动 muted + loop + autoplay; iOS 需 muted 才能自动播放。</p>
+      </div>
+    </div>
+
+    <!-- ===== 登录背景 ===== -->
+    <div class="section">
+      <h4>🔐 登录背景</h4>
+      <label class="field-label">类型</label>
+      <div class="radio-group">
+        <label><input type="radio" value="gradient" v-model="modalData.appDraft.login_bg_type"> 渐变</label>
+        <label><input type="radio" value="color"    v-model="modalData.appDraft.login_bg_type"> 纯色</label>
+        <label><input type="radio" value="image"    v-model="modalData.appDraft.login_bg_type"> 图片</label>
+        <label><input type="radio" value="video"    v-model="modalData.appDraft.login_bg_type"> 视频</label>
+      </div>
+
+      <div v-if="modalData.appDraft.login_bg_type==='gradient'">
+        <label class="field-label">渐变起始色</label>
+        <div class="color-row"><input type="color" v-model="modalData.appDraft.login_bg_color1"><span style="font-size:13px;color:#666">{{modalData.appDraft.login_bg_color1}}</span></div>
+        <label class="field-label">渐变结束色</label>
+        <div class="color-row"><input type="color" v-model="modalData.appDraft.login_bg_color2"><span style="font-size:13px;color:#666">{{modalData.appDraft.login_bg_color2}}</span></div>
+      </div>
+
+      <div v-if="modalData.appDraft.login_bg_type==='color'">
+        <label class="field-label">颜色</label>
+        <div class="color-row"><input type="color" v-model="modalData.appDraft.login_bg_color1"><span style="font-size:13px;color:#666">{{modalData.appDraft.login_bg_color1}}</span></div>
+      </div>
+
+      <div v-if="modalData.appDraft.login_bg_type==='image'" class="bg-config-block">
+        <label class="field-label">已选: <span class="bg-current-name">{{modalData.appDraft.login_bg_image||'(未选择)'}}</span></label>
+        <div class="bg-current-preview" v-if="modalData.appDraft.login_bg_image">
+          <img :src="appBgPreviewUrl(modalData.appDraft.login_bg_image)" alt="">
+          <button class="bg-current-clear" @click="pickAppBg('login_bg_image','')" type="button">清除</button>
+        </div>
+
+        <label class="field-label">从已上传素材中选择</label>
+        <div v-if="!appBgImages().length" class="bg-picker-empty">素材库暂无图片, 点下面「上传新图片」即可添加。</div>
+        <div v-else class="bg-picker-grid">
+          <div v-for="b in appBgImages()" :key="b.filename"
+               class="bg-picker-item"
+               :class="{sel:modalData.appDraft.login_bg_image===b.filename}"
+               @click="pickAppBg('login_bg_image',b.filename)"
+               :title="b.filename+' ('+fmtSize(b.size)+')'">
+            <img :src="appBgPreviewUrl(b.filename)" alt="">
+            <span v-if="modalData.appDraft.login_bg_image===b.filename" class="bg-picker-tick">✓</span>
+          </div>
+        </div>
+
+        <input type="file" accept="image/*" hidden ref="loginImgFile" @change="doAppBgUpload($event,'login_bg_image')">
+        <button class="secondary" @click="$refs.loginImgFile.click()" :disabled="modalData.appUploading==='login_bg_image'">
+          {{modalData.appUploading==='login_bg_image'?'⏳ 上传中…':'📤 上传新图片'}}
+        </button>
+        <label class="field-label">适配方式</label>
+        <div class="radio-group">
+          <label><input type="radio" value="fill"    v-model="modalData.appDraft.login_bg_mode"> 填充</label>
+          <label><input type="radio" value="fit"     v-model="modalData.appDraft.login_bg_mode"> 适应</label>
+          <label><input type="radio" value="stretch" v-model="modalData.appDraft.login_bg_mode"> 拉伸</label>
+          <label><input type="radio" value="tile"    v-model="modalData.appDraft.login_bg_mode"> 平铺</label>
+        </div>
+      </div>
+
+      <div v-if="modalData.appDraft.login_bg_type==='video'" class="bg-config-block">
+        <label class="field-label">已选: <span class="bg-current-name">{{modalData.appDraft.login_bg_video||'(未选择)'}}</span></label>
+        <div class="bg-current-preview" v-if="modalData.appDraft.login_bg_video">
+          <video :src="appBgPreviewUrl(modalData.appDraft.login_bg_video)" muted autoplay loop playsinline></video>
+          <button class="bg-current-clear" @click="pickAppBg('login_bg_video','')" type="button">清除</button>
+        </div>
+
+        <label class="field-label">从已上传素材中选择</label>
+        <div v-if="!appBgVideos().length" class="bg-picker-empty">素材库暂无视频, 点下面「上传新视频」即可添加。</div>
+        <div v-else class="bg-picker-grid">
+          <div v-for="b in appBgVideos()" :key="b.filename"
+               class="bg-picker-item"
+               :class="{sel:modalData.appDraft.login_bg_video===b.filename}"
+               @click="pickAppBg('login_bg_video',b.filename)"
+               :title="b.filename+' ('+fmtSize(b.size)+')'">
+            <video :src="appBgPreviewUrl(b.filename)" muted preload="metadata"></video>
+            <span class="bg-picker-kind">视频</span>
+            <span v-if="modalData.appDraft.login_bg_video===b.filename" class="bg-picker-tick">✓</span>
+          </div>
+        </div>
+
+        <input type="file" accept="video/*" hidden ref="loginVidFile" @change="doAppBgUpload($event,'login_bg_video')">
+        <button class="secondary" @click="$refs.loginVidFile.click()" :disabled="modalData.appUploading==='login_bg_video'">
+          {{modalData.appUploading==='login_bg_video'?'⏳ 上传中…':'📤 上传新视频'}}
+        </button>
+        <label class="field-label">适配方式</label>
+        <div class="radio-group">
+          <label><input type="radio" value="fill"    v-model="modalData.appDraft.login_bg_video_mode"> 填充</label>
+          <label><input type="radio" value="fit"     v-model="modalData.appDraft.login_bg_video_mode"> 适应</label>
+          <label><input type="radio" value="stretch" v-model="modalData.appDraft.login_bg_video_mode"> 拉伸</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 视差壁纸 (实验性 - 接口预留) ===== -->
+    <div class="section parallax-section">
+      <h4>📱 视差壁纸 (Parallax / Perspective) <span class="exp-tag">实验性</span></h4>
+      <p class="hint">
+        启用后, 上方设置的图片/视频背景会随手机姿态轻微位移, 模拟透视景深。
+        此功能后期会扩展为多图层穿透视差; 当前为接口预留, 同时已可工作于单层背景。
+      </p>
+
+      <label class="parallax-toggle">
+        <input type="checkbox" v-model="modalData.appDraft.parallax_enabled">
+        <span>启用陀螺仪视差</span>
+      </label>
+
+      <label class="field-label">视差强度: {{modalData.appDraft.parallax_strength}}</label>
+      <input type="range" min="0" max="100" step="1" v-model.number="modalData.appDraft.parallax_strength" style="width:100%">
+
+      <div class="gyro-box">
+        <div class="gyro-status" :class="{warn:!modalData.gyroState.supported}">
+          {{modalData.gyroState.msg}}
+        </div>
+
+        <div v-if="modalData.gyroState.live" class="gyro-live">
+          实时姿态: β={{modalData.gyroState.live.beta?.toFixed(1)}}°
+          γ={{modalData.gyroState.live.gamma?.toFixed(1)}}°
+          α={{modalData.gyroState.live.alpha?.toFixed(1)}}°
+        </div>
+
+        <div v-if="modalData.gyroState.baselineLocal" class="gyro-baseline">
+          已采基线: β={{modalData.gyroState.baselineLocal.beta.toFixed(2)}}°
+          γ={{modalData.gyroState.baselineLocal.gamma.toFixed(2)}}°
+          ({{modalData.gyroState.baselineLocal.samples}} 样本)
+        </div>
+
+        <div class="gyro-actions">
+          <button v-if="modalData.gyroState.needsPerm && !modalData.gyroState.permGranted"
+                  class="secondary" @click="doRequestGyroPerm()">🔓 授权陀螺仪</button>
+          <button :disabled="!modalData.gyroState.supported || modalData.gyroState.capturing"
+                  @click="doStartGyroCapture()">
+            {{modalData.gyroState.capturing?'📡 采集中…':'📍 校准 (放平 2 秒)'}}
+          </button>
+          <button v-if="modalData.gyroState.baselineLocal" class="success" @click="doSaveGyroBaseline()">
+            💾 仅保存基线
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 底部操作 ===== -->
+    <button @click="doSaveAppearance()">💾 保存并应用</button>
+    <p style="font-size:13px;text-align:center;min-height:18px">{{modalData.appearMsg}}</p>
+    <button class="close-btn" @click="currentModal='settings'">返回</button>
+  </div>
+</div>
 <div v-if="currentModal==='userMgmt'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>👥 用户管理</h3><div class="section"><h4>添加用户</h4><input id="newU" type="text" placeholder="用户名"><input id="newUP" type="password" placeholder="密码 (至少6位)"><input id="newUN" type="text" placeholder="昵称"><button @click="doAddUser()">添加</button><p id="addUserMsg" style="font-size:13px"></p></div><div class="section"><h4>用户列表</h4><div class="user-list"><div v-for="u in modalData.users||[]" :key="u.id" class="user-item"><div><span class="username">{{u.username}}</span><span v-if="u.is_admin" style="color:#667eea;font-size:11px;margin-left:4px">(管理员)</span><br><span class="nickname">{{u.nickname}}</span></div><div><button v-if="!u.is_admin" style="background:#dc2626" @click="doDeleteUser(u)">删除</button></div></div></div></div><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
 <div v-if="currentModal==='backup'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>💾 备份与还原</h3><div class="section"><h4>导出备份</h4><input type="date" id="bkStart"><input type="date" id="bkEnd"><button @click="doExportBackup()">下载备份</button></div><div class="section"><h4>还原备份</h4><input type="file" id="restoreFile" accept=".json"><button @click="doRestoreBackup()">还原</button></div><p id="backupMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
 <div v-if="currentModal==='deleteMsg'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>🗑️ 删除聊天记录</h3><p style="color:#dc2626;text-align:center">⚠️ 此操作不可恢复！</p><input type="date" id="delStart"><input type="date" id="delEnd"><button class="danger" @click="doDeleteMessages()">确认删除</button><p id="delMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
@@ -278,6 +599,11 @@ const App = {
 <div v-if="currentModal==='fileMgmt'" class="modal-overlay" @click.self="currentModal='settings'">
   <div class="modal modal-wide">
     <h3>📎 附件管理</h3>
+    <p class="hint" style="margin:0 0 10px">
+      此处仅显示<b>聊天发送</b>的图片/文件。
+      管理员在「外观定制」上传的墙纸/视频不在这里, 请到
+      <a href="#" @click.prevent="openBgLibrary()" style="color:#667eea;font-weight:600">🖼️ 墙纸/视频库</a> 查看。
+    </p>
     <div class="fm-toolbar">
       <select v-model="modalData.filesFilter.type" @change="loadFiles()">
         <option value="">全部类型</option>
@@ -400,6 +726,17 @@ const App = {
     },
 
     downloadFile(url, name) { const a = document.createElement('a'); a.href = url; a.download = name; a.click(); },
+
+    /* 把 fill/fit/stretch/tile 翻译成预览图/视频用的 CSS */
+    bgFitStyle(mode) {
+      switch (mode) {
+        case 'fit':     return { objectFit: 'contain', backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
+        case 'stretch': return { objectFit: 'fill',    backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
+        case 'tile':    return { objectFit: 'none',    backgroundSize: 'auto',     backgroundRepeat: 'repeat',    backgroundPosition: 'center' };
+        case 'fill':
+        default:        return { objectFit: 'cover',   backgroundSize: 'cover',    backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
+      }
+    },
 
     joinChainById(id) {
       const ch = msgStore[store.currentChannelId]; if (!ch) return;

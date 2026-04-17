@@ -83,20 +83,241 @@ const AdminMethods = {
     } catch(e) {}
   },
 
+  /* ====== 外观: 打开面板, 把后端最新值复制到草稿 ====== */
+  async openAppearance() {
+    const a = store.appearance || {};
+    /* 兼容老库里的 mode = 'cover'/'auto'/'' -> 映射到新四态 */
+    const fixMode = m => {
+      if (m === 'fill' || m === 'fit' || m === 'stretch' || m === 'tile') return m;
+      if (m === 'auto' || m === 'repeat') return 'tile';
+      return 'fill'; /* 'cover' / '' / undefined / 其它老值 */
+    };
+    /* 重要: 先把 appBgList 占位放进去, 再设 currentModal,
+     * 否则模板首次渲染时 modalData.appBgList 还没在响应式 proxy 里登记键,
+     * 后续 loadAppBgList 写入时 Vue 不会触发 <select> 重渲染。 */
+    this.modalData.appBgList    = [];   /* 库内可选文件 */
+    this.modalData.appUploading = '';   /* 当前正在上传的槽位 key */
+    this.modalData.appearMsg    = '';
+    this.modalData.appDraft = {
+      login_title:  a.login_title  || '',
+      chat_title:   a.chat_title   || '',
+      send_text:    a.send_text    || '',
+      send_color:   a.send_color   || '#667eea',
+
+      bg_type:        a.bg_type        || 'color',
+      bg_color:       a.bg_color       || '#f0f2f5',
+      bg_image:       a.bg_image       || '',
+      bg_mode:        fixMode(a.bg_mode),
+      bg_video:       a.bg_video       || '',
+      bg_video_mode:  fixMode(a.bg_video_mode),
+
+      login_bg_type:        a.login_bg_type        || 'gradient',
+      login_bg_color1:      a.login_bg_color1      || '#667eea',
+      login_bg_color2:      a.login_bg_color2      || '#764ba2',
+      login_bg_image:       a.login_bg_image       || '',
+      login_bg_mode:        fixMode(a.login_bg_mode),
+      login_bg_video:       a.login_bg_video       || '',
+      login_bg_video_mode:  fixMode(a.login_bg_video_mode),
+
+      parallax_enabled:  a.parallax_enabled === '1',
+      parallax_strength: parseInt(a.parallax_strength) || 30
+    };
+    this.modalData.gyroState = this._gyroInitState();
+    this.currentModal = 'appearance';
+    /* 必须 await: 早期不 await, 一旦请求慢一点点用户就以为列表空 */
+    await this.loadAppBgList();
+  },
+
+  async loadAppBgList() {
+    try {
+      const r = await fetch(API + '/api/admin/backgrounds', { headers: authH() });
+      if (!r.ok) {
+        this.modalData.appearMsg = '⚠️ 素材库加载失败 (HTTP ' + r.status + ')';
+        return;
+      }
+      const d = await r.json();
+      /* 用全新的数组实例, 避免某些情况下 Vue 没识别到引用变更 */
+      this.modalData.appBgList = (d.items || []).slice();
+    } catch (e) {
+      this.modalData.appearMsg = '⚠️ 素材库加载失败';
+    }
+  },
+
+  _appBgListByKind(kind) {
+    return (this.modalData.appBgList || []).filter(x => x.kind === kind);
+  },
+  appBgImages() { return this._appBgListByKind('image'); },
+  appBgVideos() { return this._appBgListByKind('video'); },
+
+  /* 渲染预览用的 URL (静态目录由 server.js 挂载: /backgrounds) */
+  appBgPreviewUrl(filename) {
+    if (!filename) return '';
+    return API + '/backgrounds/' + encodeURIComponent(filename);
+  },
+
+  /* 文件名 -> 'image' | 'video' | 'other' (不依赖列表是否已加载) */
+  bgKindOfFilename(filename) {
+    if (!filename) return 'other';
+    const m = String(filename).toLowerCase().match(/\.([a-z0-9]+)$/);
+    const ext = m ? '.' + m[1] : '';
+    if (['.jpg','.jpeg','.png','.gif','.webp','.bmp','.svg'].includes(ext)) return 'image';
+    if (['.mp4','.mov','.webm','.m4v'].includes(ext)) return 'video';
+    return 'other';
+  },
+
+  /* 在缩略图网格里点选: 等价于在 <select> 里改值 */
+  pickAppBg(slotKey, filename) {
+    if (!this.modalData.appDraft) return;
+    this.modalData.appDraft[slotKey] = filename || '';
+  },
+
+  /* 直接在外观面板里上传一个背景图/视频, 上传完写入对应槽位
+   * slotKey: 'bg_image' | 'bg_video' | 'login_bg_image' | 'login_bg_video'
+   */
+  async doAppBgUpload(ev, slotKey) {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!f) return;
+    const fd = new FormData(); fd.append('bg', f);
+    this.modalData.appUploading = slotKey;
+    this.modalData.appearMsg = '⏳ 上传中…';
+    try {
+      const r = await fetch(API + '/api/upload-bg', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + store.token },
+        body: fd
+      });
+      let d = null;
+      try { d = await r.json(); } catch (e) { d = null; }
+      if (r.ok && d && d.success && d.filename) {
+        /* 先写选中值, 这样即便列表刷新失败, 用户也能看到自己刚上传的项被选上 */
+        this.modalData.appDraft[slotKey] = d.filename;
+        /* 乐观插入到本地 appBgList 顶部, UI 立刻可见 */
+        const exists = (this.modalData.appBgList || []).some(x => x.filename === d.filename);
+        if (!exists) {
+          const item = {
+            filename: d.filename,
+            kind: d.kind || this.bgKindOfFilename(d.filename),
+            size: d.size || (f.size || 0),
+            mtime: d.mtime || new Date().toISOString(),
+            used_by: []
+          };
+          this.modalData.appBgList = [item, ...(this.modalData.appBgList || [])];
+        }
+        this.modalData.appearMsg = '✅ 已上传, 记得点底部「保存并应用」';
+        /* 后台再拉一次, 顺便修正 used_by 等字段 (即使失败也不影响显示) */
+        this.loadAppBgList();
+      } else {
+        const msg = (d && d.message) || ('上传失败 (HTTP ' + r.status + ')');
+        this.modalData.appearMsg = msg;
+      }
+    } catch (e) { this.modalData.appearMsg = '上传失败: ' + (e.message || e); }
+    this.modalData.appUploading = '';
+  },
+
   async doSaveAppearance() {
+    const a = this.modalData.appDraft || {};
     const b = {
-      login_title: document.getElementById('appLT').value,
-      chat_title: document.getElementById('appCT').value,
-      send_text: document.getElementById('appST').value,
-      send_color: document.getElementById('appSC').value,
-      bg_color: document.getElementById('appBG').value,
+      login_title: a.login_title,
+      chat_title:  a.chat_title,
+      send_text:   a.send_text,
+      send_color:  a.send_color,
+
+      bg_type:        a.bg_type,
+      bg_color:       a.bg_color,
+      bg_image:       a.bg_image,
+      bg_mode:        a.bg_mode,
+      bg_video:       a.bg_video,
+      bg_video_mode:  a.bg_video_mode,
+
+      login_bg_type:        a.login_bg_type,
+      login_bg_color1:      a.login_bg_color1,
+      login_bg_color2:      a.login_bg_color2,
+      login_bg_image:       a.login_bg_image,
+      login_bg_mode:        a.login_bg_mode,
+      login_bg_video:       a.login_bg_video,
+      login_bg_video_mode:  a.login_bg_video_mode,
+
+      parallax_enabled:  a.parallax_enabled ? '1' : '0',
+      parallax_strength: String(a.parallax_strength || 30)
     };
     try {
-      const r = await fetch(API + '/api/settings/appearance', { method: 'POST', headers: authH({ 'Content-Type': 'application/json' }), body: JSON.stringify(b) });
+      const r = await fetch(API + '/api/settings/appearance', {
+        method: 'POST',
+        headers: authH({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(b)
+      });
       const d = await r.json();
-      document.getElementById('appearMsg').textContent = d.success ? '✅ 已保存' : '失败';
-    } catch(e) { document.getElementById('appearMsg').textContent = '失败'; }
+      this.modalData.appearMsg = d.success ? '✅ 已保存' : '失败';
+    } catch (e) { this.modalData.appearMsg = '失败'; }
   },
+
+  /* ====== 视差 / 陀螺仪姿态采集 ====== */
+  _gyroInitState() {
+    const supported = !!(window.Parallax && Parallax.isSupported());
+    const needsPerm = !!(window.Parallax && Parallax.isIOSPermissionRequired());
+    return {
+      supported,
+      needsPerm,
+      permGranted: !needsPerm,        /* 非 iOS 默认已授权 */
+      capturing: false,
+      live: null,                     /* 实时姿态 {beta, gamma, alpha} */
+      baselineLocal: null,            /* 本次刚采到的基线 */
+      msg: supported
+        ? (needsPerm ? '此设备需要授权 (iOS 13+), 请点击 "授权陀螺仪"' : '可以开始校准')
+        : '⚠️ 当前设备/浏览器不支持 DeviceOrientation API'
+    };
+  },
+
+  async doRequestGyroPerm() {
+    if (!window.Parallax) return;
+    const ok = await Parallax.requestPermission();
+    const g = this.modalData.gyroState;
+    g.permGranted = !!ok;
+    g.msg = ok ? '✅ 已授权, 可以开始校准' : '❌ 授权被拒绝, 可以稍后重试';
+  },
+
+  async doStartGyroCapture() {
+    if (!window.Parallax) return;
+    const g = this.modalData.gyroState;
+    if (!g.supported) return;
+    if (!g.permGranted) { await this.doRequestGyroPerm(); if (!g.permGranted) return; }
+    g.capturing = true; g.msg = '📡 采集中, 请保持设备水平 2 秒…';
+    /* 一边校准一边把实时数据回写 UI */
+    const stopLive = Parallax.startCapture(s => {
+      g.live = { beta: s.beta, gamma: s.gamma, alpha: s.alpha };
+    }, {});
+    try {
+      const baseline = await Parallax.calibrate(2000);
+      g.baselineLocal = baseline;
+      /* 写入草稿; 真正落库要等用户点保存 */
+      this.modalData.appDraft.parallax_baseline_pending = JSON.stringify(baseline);
+      g.msg = '✅ 校准完成 (β=' + baseline.beta.toFixed(2)
+            + '°, γ=' + baseline.gamma.toFixed(2) + '°), 记得点保存';
+    } catch (e) {
+      g.msg = '❌ 采集失败: ' + (e.message || e);
+    }
+    g.capturing = false;
+    stopLive();
+  },
+
+  /* 把刚采到的基线一起送到后端 (单独按钮, 也可以随保存一起) */
+  async doSaveGyroBaseline() {
+    const pending = this.modalData.appDraft && this.modalData.appDraft.parallax_baseline_pending;
+    if (!pending) { this.modalData.gyroState.msg = '请先校准一次'; return; }
+    try {
+      const r = await fetch(API + '/api/settings/appearance', {
+        method: 'POST',
+        headers: authH({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ parallax_baseline: pending })
+      });
+      const d = await r.json();
+      this.modalData.gyroState.msg = d.success ? '✅ 基线已保存' : '保存失败';
+    } catch (e) { this.modalData.gyroState.msg = '保存失败'; }
+  },
+
+  async doSaveAppearanceLegacy_REMOVED() { /* 占位, 防止旧调用报错 */ },
+
 
   async doExportBackup() {
     const s = document.getElementById('bkStart').value, e = document.getElementById('bkEnd').value;

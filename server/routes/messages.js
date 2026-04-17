@@ -87,9 +87,22 @@ router.post("/upload-avatar", authMiddleware, uploadAvatar.single("avatar"), (re
 });
 
 /* ===== 上传背景 ===== */
+const path = require("path");
+const IMG_EXTS_BG = new Set([".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg"]);
+const VID_EXTS_BG = new Set([".mp4",".mov",".webm",".m4v"]);
 router.post("/upload-bg", authMiddleware, adminMiddleware, uploadBg.single("bg"), (req, res) => {
-  if (!req.file) return res.json({ success: false });
-  res.json({ success: true, filename: req.file.filename });
+  if (!req.file) return res.json({ success: false, message: "上传失败" });
+  const ext = path.extname(req.file.filename).toLowerCase();
+  const kind = IMG_EXTS_BG.has(ext) ? "image"
+             : VID_EXTS_BG.has(ext) ? "video"
+             : "other";
+  res.json({
+    success: true,
+    filename: req.file.filename,
+    kind,
+    size: req.file.size,
+    mtime: new Date().toISOString()
+  });
 });
 
 module.exports = router;

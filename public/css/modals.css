@@ -36,3 +36,76 @@
 .ch-perm-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#f9f9f9;border-radius:6px}
 .ch-perm-row .perm-user{flex:1;font-size:13px}
 .ch-perm-row select{padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px}
+
+/* ===== 背景层 (聊天/登录共用) ===== */
+.bg-layer{position:absolute;inset:0;z-index:0;background-position:center;pointer-events:none;overflow:hidden;
+  /* 视差启用时, transform 由 Parallax.applyToLayers() 写入; 给一点超出余量防止边缘穿帮 */
+  will-change:transform}
+.bg-layer .bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background:#000}
+.login-page{position:relative;overflow:hidden}
+.login-page > .login-card{position:relative;z-index:2}
+/* 当启用视差时给图层留出位移余量, 防止边缘露白 */
+.bg-layer{margin:-20px;padding:20px}
+
+/* ===== 外观定制: 新增控件 ===== */
+.bg-config-block{background:#fafbff;border:1px dashed #d6dcff;border-radius:8px;padding:10px 12px;margin:6px 0 4px}
+.bg-config-block select{margin-bottom:6px}
+.bg-config-block .field-label{margin-top:6px}
+.modal .hint{font-size:12px;color:#888;line-height:1.5;margin:6px 0;padding:6px 8px;background:#f5f7ff;border-left:3px solid #c7d2fe;border-radius:4px}
+
+/* 视差面板 */
+.parallax-section .exp-tag{display:inline-block;margin-left:6px;padding:1px 6px;font-size:10px;background:#fef3c7;color:#92400e;border-radius:8px;vertical-align:middle;font-weight:600}
+.parallax-toggle{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;cursor:pointer;user-select:none}
+.parallax-toggle input{width:auto;margin:0}
+.gyro-box{background:#fafbff;border:1px solid #e0e7ff;border-radius:8px;padding:10px;margin-top:8px}
+.gyro-status{font-size:13px;color:#3730a3;line-height:1.5}
+.gyro-status.warn{color:#92400e}
+.gyro-live{font-size:12px;color:#555;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:6px;padding:4px 6px;background:#fff;border-radius:4px;border:1px solid #eee}
+.gyro-baseline{font-size:12px;color:#166534;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:4px 6px;background:#dcfce7;border-radius:4px}
+.gyro-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.gyro-actions button{flex:1;min-width:120px;width:auto;margin:0;padding:8px 12px;font-size:13px}
+.gyro-actions button:disabled{opacity:.5;cursor:not-allowed}
+
+/* ===== 外观定制: 实时预览 ===== */
+.appear-preview-section{background:linear-gradient(180deg,#fafbff,#fff);border:1px solid #e0e7ff;border-radius:10px;padding:12px}
+.appear-preview-section h4{margin-top:0}
+.preview-hint{font-size:11px;color:#888;font-weight:400;margin-left:6px}
+.appear-preview-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.appear-preview-card{background:#fff;border:1px solid #eee;border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+.appear-preview-label{font-size:11px;color:#888;padding:4px 8px;background:#f7f7fb;border-bottom:1px solid #eee;font-weight:600;letter-spacing:.5px}
+.appear-preview-stage{position:relative;width:100%;aspect-ratio:9/14;background:#f0f2f5;overflow:hidden}
+.appear-preview-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:0}
+.appear-preview-empty{display:flex;align-items:center;justify-content:center;color:#aaa;font-size:11px;background:#f3f4f6}
+/* 登录卡片占位 */
+.appear-preview-card-fake{position:absolute;inset:auto 12% 18% 12%;background:rgba(255,255,255,.92);border-radius:8px;padding:8px;backdrop-filter:blur(6px);box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:1}
+.appear-preview-title{font-size:11px;font-weight:700;color:#333;text-align:center;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appear-preview-input{height:8px;background:#eef0f5;border-radius:3px;margin-bottom:4px}
+.appear-preview-btn{height:14px;border-radius:4px;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:600;margin-top:4px}
+/* 聊天气泡占位 */
+.appear-preview-chat{position:absolute;inset:8px 8px 30px 8px;display:flex;flex-direction:column;gap:4px;z-index:1;overflow:hidden}
+.appear-preview-bubble{font-size:9px;padding:3px 6px;border-radius:8px;max-width:70%;line-height:1.3;color:#333;background:#fff;align-self:flex-start;box-shadow:0 1px 2px rgba(0,0,0,.08);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appear-preview-bubble.my{align-self:flex-end;color:#fff}
+.appear-preview-inputbar{position:absolute;left:0;right:0;bottom:0;height:22px;background:rgba(255,255,255,.95);border-top:1px solid #e5e5e5;display:flex;align-items:center;gap:4px;padding:0 4px;z-index:1}
+.appear-preview-textfield{flex:1;height:14px;background:#f0f0f0;border-radius:7px}
+.appear-preview-sendbtn{font-size:9px;color:#fff;padding:2px 8px;border-radius:6px;font-weight:600;white-space:nowrap;max-width:50%;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== 外观定制: 当前选中预览 ===== */
+.bg-current-name{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#3730a3;background:#eef2ff;padding:2px 6px;border-radius:4px;word-break:break-all}
+.bg-current-preview{position:relative;margin:6px 0;border:1px solid #e0e7ff;border-radius:8px;overflow:hidden;background:#000;display:flex;justify-content:center;align-items:center;max-height:160px}
+.bg-current-preview img,.bg-current-preview video{display:block;width:100%;max-height:160px;object-fit:contain;background:#222}
+.bg-current-clear{position:absolute!important;top:6px;right:6px;width:auto!important;margin:0!important;padding:4px 10px!important;font-size:11px!important;background:rgba(0,0,0,.6)!important;color:#fff!important;border-radius:6px!important}
+
+/* ===== 外观定制: 缩略图选择网格 ===== */
+.bg-picker-empty{font-size:12px;color:#888;background:#f9fafb;border:1px dashed #ddd;border-radius:6px;padding:12px;text-align:center;margin-bottom:8px}
+.bg-picker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;max-height:180px;overflow-y:auto;padding:4px;background:#f9fafb;border:1px solid #eee;border-radius:6px;margin-bottom:8px}
+.bg-picker-item{position:relative;aspect-ratio:1;border:2px solid transparent;border-radius:6px;overflow:hidden;cursor:pointer;background:#222;transition:border-color .15s,transform .1s}
+.bg-picker-item:hover{border-color:#c7d2fe;transform:scale(1.02)}
+.bg-picker-item.sel{border-color:#667eea;box-shadow:0 0 0 2px rgba(102,126,234,.25)}
+.bg-picker-item img,.bg-picker-item video{width:100%;height:100%;object-fit:cover;display:block}
+.bg-picker-tick{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#667eea;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.bg-picker-kind{position:absolute;bottom:2px;left:2px;font-size:9px;background:rgba(0,0,0,.55);color:#fff;padding:1px 4px;border-radius:4px}
+
+@media (max-width:560px){
+  .appear-preview-row{grid-template-columns:1fr}
+  .bg-picker-grid{grid-template-columns:repeat(auto-fill,minmax(64px,1fr))}
+}
