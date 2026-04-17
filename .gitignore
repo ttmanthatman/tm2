@@ -1,0 +1,9 @@
+# === github_uploader 自动添加 ===
+*.tar.gz
+*.tgz
+github_uploader.py
+.DS_Store
+__MACOSX/
+# brace-expansion 残留目录 (打包脚本失败遗留, 内容不应进仓库)
+*{*
+*}*

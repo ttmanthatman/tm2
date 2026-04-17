@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TeamChat">
+  <meta name="theme-color" content="#667eea">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/images/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/images/icon-192.png">
+  <title>团队聊天室</title>
+
+  <!-- ===== 模块化 CSS ===== -->
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/login.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/chat.css">
+  <link rel="stylesheet" href="/css/modals.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+<div id="app"></div>
+
+<!-- ===== 依赖库 ===== -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+<!-- ===== 模块化 JS (注意顺序：工具 → 状态 → API → Socket → 推送 → 管理 → 主入口) ===== -->
+<script src="/js/utils.js"></script>
+<script src="/js/store.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/socket-client.js"></script>
+<script src="/js/push-client.js"></script>
+<script src="/js/modals/admin-methods.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
