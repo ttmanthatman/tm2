@@ -1,6 +1,6 @@
 {
   "name": "teamchat",
-  "version": "9.1.0",
+  "version": "0.1.0",
   "description": "TeamChat 多频道团队聊天 - 模块化版本",
   "private": true,
   "main": "server/server.js",
