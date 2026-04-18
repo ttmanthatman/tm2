@@ -8,7 +8,10 @@ const crypto = require("crypto");
 const webpush = require("web-push");
 
 const APP_ROOT = path.resolve(__dirname, "..");
-const PORT = process.env.PORT || __PORT_PLACEHOLDER__;
+const PORT = process.env.PORT
+  || (fs.existsSync(path.join(APP_ROOT, ".port"))
+      ? parseInt(fs.readFileSync(path.join(APP_ROOT, ".port"), "utf-8").trim())
+      : 3000);
 
 /* ===== 目录 ===== */
 const DB_PATH = path.join(APP_ROOT, "database.sqlite");

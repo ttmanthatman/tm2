@@ -8,3 +8,15 @@ __MACOSX/
 *{*
 *}*
 *.zip
+
+# === 运行时本地配置 (不应进仓库) ===
+node_modules/
+database.sqlite
+uploads/
+avatars/
+backgrounds/
+.jwt_secret
+.vapid_keys
+.port
+.deploy-log
+.backups/

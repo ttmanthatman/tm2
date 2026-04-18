@@ -79,12 +79,9 @@ if [ ! -f public/images/default-avatar.svg ]; then
 SVGEOF
 fi
 
-# ----- 4. 处理端口占位符 -----
-# 你的 server/config.js 里有 __PORT_PLACEHOLDER__,需要替换成真实端口
-if grep -q "__PORT_PLACEHOLDER__" server/config.js; then
-  sed -i "s/__PORT_PLACEHOLDER__/$PORT/g" server/config.js
-  echo -e "${GREEN}✓ 已替换端口占位符为 $PORT${NC}"
-fi
+# ----- 4. 写入端口配置 -----
+echo "$PORT" > .port
+echo -e "${GREEN}✓ 端口 $PORT 已写入 .port 文件${NC}"
 
 # ----- 5. 装依赖 + 初始化 -----
 echo -e "${YELLOW}[4/6] npm install...${NC}"
