@@ -439,4 +439,100 @@ const AdminMethods = {
     { v: 'Pacific/Auckland', l: '新西兰时间' },
     { v: 'Australia/Sydney', l: '悉尼时间' },
   ],
+
+  /* ===== 用户导出 ===== */
+  async doExportUsers() {
+    try {
+      const data = await exportUsers();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().slice(0, 10);
+      a.href = URL.createObjectURL(blob);
+      a.download = 'users_' + ts + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      alert('导出失败: ' + e.message);
+    }
+  },
+
+  /* ===== 用户导入: 读取文件 + 预览 ===== */
+  async doImportUsersFile(e) {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+
+    let data;
+    try {
+      data = JSON.parse(await f.text());
+    } catch (err) {
+      alert('文件格式错误，请选择有效的 JSON 文件');
+      return;
+    }
+
+    const users = data.users;
+    if (!Array.isArray(users) || !users.length) {
+      alert('文件中没有找到用户数据');
+      return;
+    }
+
+    let existingNames = new Set();
+    try {
+      const r = await fetch(API + '/api/users', { headers: authH() });
+      if (r.ok) {
+        const list = await r.json();
+        existingNames = new Set(list.map(u => u.username));
+      }
+    } catch (err) {}
+
+    const preview = users.map(u => ({
+      username: u.username || '',
+      nickname: u.nickname || '',
+      created_at: u.created_at || '',
+      password_hash: u.password_hash || '',
+      exists: existingNames.has(u.username),
+      checked: !existingNames.has(u.username)
+    }));
+
+    this.modalData.importPreview = preview;
+    this.modalData.importMsg = '';
+    this.currentModal = 'userImport';
+  },
+
+  doImportToggleAll(val) {
+    (this.modalData.importPreview || []).forEach(u => { u.checked = val; });
+  },
+
+  async doConfirmImport() {
+    const preview = this.modalData.importPreview || [];
+    const selected = preview.filter(u => u.checked);
+    if (!selected.length) {
+      this.modalData.importMsg = '请至少勾选一个用户';
+      return;
+    }
+
+    this.modalData.importMsg = '⏳ 导入中…';
+    try {
+      const payload = selected.map(u => ({
+        username: u.username,
+        password_hash: u.password_hash,
+        nickname: u.nickname,
+        created_at: u.created_at
+      }));
+      const res = await importUsers(payload);
+      if (res.success) {
+        let msg = '✅ 成功导入 ' + res.added.length + ' 人';
+        if (res.skipped.length) {
+          msg += '，跳过 ' + res.skipped.length + ' 人 ('
+            + res.skipped.map(s => s.username).join(', ') + ')';
+        }
+        this.modalData.importMsg = msg;
+        this.loadUsers();
+      } else {
+        this.modalData.importMsg = '❌ ' + (res.message || '导入失败');
+      }
+    } catch (e) {
+      this.modalData.importMsg = '❌ 导入失败: ' + e.message;
+    }
+  },
 };

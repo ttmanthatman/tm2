@@ -205,3 +205,20 @@ function applyAppearance(d) {
     }
   }
 }
+
+/* ===== 用户导入/导出 ===== */
+async function exportUsers() {
+  const r = await fetch(API + '/api/admin/users/export', { headers: authH() });
+  if (!r.ok) throw new Error('导出失败 (HTTP ' + r.status + ')');
+  return await r.json();
+}
+
+async function importUsers(users) {
+  const r = await fetch(API + '/api/admin/users/import', {
+    method: 'POST',
+    headers: authH({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ users })
+  });
+  if (!r.ok) throw new Error('导入失败 (HTTP ' + r.status + ')');
+  return await r.json();
+}

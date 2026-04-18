@@ -68,4 +68,79 @@ router.post("/admin/reset-password", authMiddleware, adminMiddleware, async (req
   res.json({ success: true });
 });
 
+/* ===== 导出用户 ===== */
+router.get("/admin/users/export", authMiddleware, adminMiddleware, (req, res) => {
+  const users = db.prepare(
+    "SELECT username, password AS password_hash, nickname, is_admin, created_at FROM users"
+  ).all().map(u => ({
+    username: u.username,
+    password_hash: u.password_hash,
+    nickname: u.nickname || null,
+    is_admin: !!u.is_admin,
+    created_at: u.created_at
+  }));
+  res.json({
+    version: 2,
+    exported_at: new Date().toISOString(),
+    users
+  });
+});
+
+/* ===== 导入用户 ===== */
+router.post("/admin/users/import", authMiddleware, adminMiddleware, (req, res) => {
+  const { users } = req.body;
+  if (!Array.isArray(users) || !users.length) {
+    return res.json({ success: false, message: "无有效用户数据" });
+  }
+
+  const existing = new Set(
+    db.prepare("SELECT username FROM users").all().map(u => u.username)
+  );
+  const pubChannels = db.prepare("SELECT id FROM channels WHERE is_private=0").all();
+
+  const added = [];
+  const skipped = [];
+
+  const insUser = db.prepare(
+    "INSERT INTO users (username, password, nickname, is_admin, created_at) VALUES (?, ?, ?, 0, ?)"
+  );
+  const insMember = db.prepare(
+    "INSERT OR IGNORE INTO channel_members (channel_id, user_id, role) VALUES (?, ?, 'member')"
+  );
+
+  const doImport = db.transaction((list) => {
+    for (const u of list) {
+      if (!u.username || !u.password_hash) {
+        skipped.push({ username: u.username || "(空)", reason: "缺少必填字段" });
+        continue;
+      }
+      if (existing.has(u.username)) {
+        skipped.push({ username: u.username, reason: "用户名已存在" });
+        continue;
+      }
+      try {
+        const r = insUser.run(
+          u.username,
+          u.password_hash,
+          u.nickname || u.username,
+          u.created_at || new Date().toISOString()
+        );
+        const newId = r.lastInsertRowid;
+        pubChannels.forEach(ch => insMember.run(ch.id, newId));
+        added.push(u.username);
+        existing.add(u.username);
+      } catch (e) {
+        skipped.push({ username: u.username, reason: "插入失败: " + e.message });
+      }
+    }
+  });
+
+  try {
+    doImport(users);
+    res.json({ success: true, added, skipped });
+  } catch (e) {
+    res.json({ success: false, message: "导入失败: " + e.message });
+  }
+});
+
 module.exports = router;
