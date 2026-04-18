@@ -17,6 +17,10 @@
 ## [v0.1.1] - 2026-04-18
 - fix: 聊天背景图片/视频改为挂在 .messages-wrapper 上，防止跟消息一起滚动
 
+### Changed
+- Added: dev.sh 新增 put（带备份复制文件）、quickfix（一键修复流程）、undo（撤销 commit）、rollback（版本回退）、retag（重命名 tag）、tags（列出版本）、diff（预览改动）
+- Improved: save 增加空提交检测、deploy 增加 tag 存在性校验、关键操作增加确认提示
+
 ## [v0.1.0] - 2026-04-18
 
 > 基线版本 — 从 bushu-43.sh 单文件脚本迁移为 GitHub 仓库管理的模块化项目。
