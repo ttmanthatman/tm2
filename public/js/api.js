@@ -5,9 +5,9 @@
  * 本文件相对仓库版本的改动:
  *   1) applyAppearance(): bg_type === 'video' 时把 <video> 挂到 .messages-wrapper
  *      (原来挂在 .messages 里, 会被滚动内容一起顶走).
- *   2) _ensureBgVideoCss(): 选择器改成匹配 .messages-wrapper > .messages,
- *      并强制 .messages 自身透明, 让视频层真正显出来.
- *   3) 图片背景模式加 background-attachment:local, 防止图片也跟着滚.
+ *   2) _ensureBgVideoCss(): 选择器匹配 .messages-wrapper > .messages,
+ *      视频/图片模式下都强制 .messages 自身透明, 让背景层真正显出来.
+ *   3) 图片背景也改为设在 .messages-wrapper 上(不滚动), 而非 .messages(会跟内容滚).
  */
 
 /* ===== 频道 ===== */
@@ -77,10 +77,11 @@ function _ensureBgVideoCss() {
     /* 视频本体: 绝对定位铺满父容器, 不抢事件 */
     '.tc-bg-video{position:absolute;inset:0;width:100%;height:100%;' +
       'z-index:0;pointer-events:none;display:block;background:#000}' +
-    /* 关键: 视频模式下 .messages 自身必须透明才能看见 wrapper 里的视频,
-     * 同时保持 z-index:1 让消息浮在视频之上 */
+    /* 关键: 背景(视频/图片)挂在 wrapper 上, .messages 必须透明才能透出来,
+     * 同时保持 z-index:1 让消息浮在背景之上 */
     '.messages-wrapper > .messages{position:relative;z-index:1}' +
-    '.messages-wrapper.tc-has-bg-video > .messages{background:transparent !important}' +
+    '.messages-wrapper.tc-has-bg-video > .messages,' +
+    '.messages-wrapper.tc-has-bg-image > .messages{background:transparent !important}' +
     /* 登录页保持原逻辑: 视频是 login-page 的直接子元素 */
     '.login-page > *:not(.tc-bg-video){position:relative;z-index:1}';
   document.head.appendChild(s);
@@ -152,33 +153,48 @@ function applyAppearance(d) {
     if (d.bg_type === 'video' && d.bg_video) {
       /* 视频模式 */
       wrap.classList.add('tc-has-bg-video');
-      wrap.style.backgroundColor = d.bg_color || '#000';
-      ml.style.backgroundImage = 'none';
-      ml.style.backgroundColor = 'transparent';
+      wrap.classList.remove('tc-has-bg-image');
+      wrap.style.backgroundColor    = d.bg_color || '#000';
+      wrap.style.backgroundImage    = '';
+      wrap.style.backgroundSize     = '';
+      wrap.style.backgroundPosition = '';
+      wrap.style.backgroundRepeat   = '';
+      ml.style.backgroundImage      = 'none';
+      ml.style.backgroundAttachment = '';
+      ml.style.backgroundColor      = 'transparent';
       _mountBgVideo(
         wrap,
         API + '/backgrounds/' + encodeURIComponent(d.bg_video),
         d.bg_video_mode
       );
     } else if (d.bg_type === 'image' && d.bg_image) {
-      /* 图片模式 */
+      /* 图片模式 — 背景挂到 wrapper(不滚动), messages 透明 */
       wrap.classList.remove('tc-has-bg-video');
-      wrap.style.backgroundColor = '';
+      wrap.classList.add('tc-has-bg-image');
       _removeBgVideo(wrap);
-      ml.style.backgroundImage    = 'url(' + API + '/backgrounds/' + encodeURIComponent(d.bg_image) + ')';
-      ml.style.backgroundSize     = d.bg_mode === 'tile' ? 'auto' : 'cover';
-      ml.style.backgroundPosition = 'center';
-      ml.style.backgroundRepeat   = d.bg_mode === 'tile' ? 'repeat' : 'no-repeat';
-      ml.style.backgroundAttachment = 'local';   /* 防止图片也跟着滚 */
-      ml.style.backgroundColor    = d.bg_color || '#f0f2f5';
-    } else {
-      /* 纯色 / 默认 */
-      wrap.classList.remove('tc-has-bg-video');
-      wrap.style.backgroundColor = '';
-      _removeBgVideo(wrap);
-      ml.style.backgroundImage = 'none';
+      /* 清理 ml 上可能残留的旧背景样式 */
+      ml.style.backgroundImage      = 'none';
       ml.style.backgroundAttachment = '';
-      ml.style.backgroundColor = d.bg_color || '#f0f2f5';
+      ml.style.backgroundColor      = 'transparent';
+      /* 背景设在 wrap 上 */
+      wrap.style.backgroundImage    = 'url(' + API + '/backgrounds/' + encodeURIComponent(d.bg_image) + ')';
+      wrap.style.backgroundSize     = d.bg_mode === 'tile' ? 'auto' : 'cover';
+      wrap.style.backgroundPosition = 'center';
+      wrap.style.backgroundRepeat   = d.bg_mode === 'tile' ? 'repeat' : 'no-repeat';
+      wrap.style.backgroundColor    = d.bg_color || '#f0f2f5';
+    } else {
+      /* 纯色 / 默认 — 清理 wrap 和 ml 上所有背景残留 */
+      wrap.classList.remove('tc-has-bg-video');
+      wrap.classList.remove('tc-has-bg-image');
+      wrap.style.backgroundColor    = '';
+      wrap.style.backgroundImage    = '';
+      wrap.style.backgroundSize     = '';
+      wrap.style.backgroundPosition = '';
+      wrap.style.backgroundRepeat   = '';
+      _removeBgVideo(wrap);
+      ml.style.backgroundImage      = 'none';
+      ml.style.backgroundAttachment = '';
+      ml.style.backgroundColor      = d.bg_color || '#f0f2f5';
     }
   }
 
