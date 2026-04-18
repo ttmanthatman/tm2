@@ -9,6 +9,7 @@
 - 管理员墙纸库:墙纸视频列表(含被引用槽位) / 复用到指定槽位 / 批量删除(`server/routes/admin-files.js`)
 - 前端管理员附件 & 墙纸库方法集,混入主 Vue 组件(`public/js/modals/files-admin-methods.js`)
 - 附件管理 / 墙纸库专用样式(`public/css/files-admin.css`)
+- 管理员用户导入/导出:批量导入用户 JSON(含预览、勾选、冲突跳过)、导出全部用户数据,兼容旧版 TeamChat 格式(`server/routes/users.js`)
 
 ### Changed
 - 统一版本号至 v0.1.0:`package.json` 与 `README.md` 中残留的旧版本号 9.1.0 已修正

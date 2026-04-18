@@ -109,3 +109,27 @@
   .appear-preview-row{grid-template-columns:1fr}
   .bg-picker-grid{grid-template-columns:repeat(auto-fill,minmax(64px,1fr))}
 }
+
+/* ===== 用户导入预览 ===== */
+.import-preview-list {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.import-preview-row {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+}
+.import-preview-row:last-child { border-bottom: none; }
+.import-preview-row.import-exists { background: #fef3c7; }
+.import-tag-exists {
+  display: inline-block;
+  font-size: 11px;
+  color: #92400e;
+  background: #fde68a;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
