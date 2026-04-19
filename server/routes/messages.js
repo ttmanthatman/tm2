@@ -46,6 +46,23 @@ router.delete("/messages", authMiddleware, adminMiddleware, (req, res) => {
   });
 });
 
+/* ===== 删除单条消息 (管理员) ===== */
+router.delete("/messages/:id", authMiddleware, adminMiddleware, (req, res) => {
+  const msgId = parseInt(req.params.id);
+  if (!msgId || msgId <= 0) return res.json({ success: false, message: "无效的消息ID" });
+
+  const msg = db.prepare("SELECT id FROM messages WHERE id=?").get(msgId);
+  if (!msg) return res.json({ success: false, message: "消息不存在" });
+
+  db.prepare("DELETE FROM messages WHERE id=?").run(msgId);
+
+  /* 通过 Socket 通知所有客户端移除该消息 */
+  const io = req.app.get("io");
+  if (io) io.emit("messagesDeleted", { ids: [msgId] });
+
+  res.json({ success: true, deleted: 1 });
+});
+
 /* ===== 上传聊天文件 ===== */
 router.post("/upload", authMiddleware, upload.single("file"), (req, res) => {
   if (!req.file) return res.json({ success: false, message: "上传失败" });

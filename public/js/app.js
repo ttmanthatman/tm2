@@ -32,7 +32,7 @@ const App = {
     const animOn = ref(localStorage.getItem('tc_anim') !== '0');
     const bubbleDepth = ref(localStorage.getItem('tc_depth') || '2d');
     const showEmojiPicker = ref(false);
-    const emojiTab = ref('classic');
+    const emojiTab = ref('face');
 
     function applyEffectClasses() {
       document.body.classList.toggle('anim-on', animOn.value);
@@ -299,7 +299,7 @@ const App = {
     </div>
   </div>
 </div>
-<div v-if="ctxMenu" class="msg-menu" :style="{left:ctxMenu.x+'px',top:ctxMenu.y+'px'}"><div class="menu-item" @click="setReply(ctxMenu.msg)">💬 引用回复</div></div>
+<div v-if="ctxMenu" class="msg-menu" :style="{left:ctxMenu.x+'px',top:ctxMenu.y+'px'}"><div class="menu-item" @click="setReply(ctxMenu.msg)">💬 引用回复</div><div v-if="store.isAdmin" class="menu-item menu-item-danger" @click="doDeleteSingleMsg(ctxMenu.msg)">🗑️ 删除此消息</div></div>
 <div v-if="currentModal==='imagePreview'" class="image-modal" @click="currentModal=''"><img :src="modalData.src" alt="预览"></div>
 <div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div class="section"><h4>✨ 动画效果</h4><div class="anim-toggles"><div class="anim-toggle-row"><span>消息动画 (果冻滑入 & 水波)</span><label class="toggle-switch"><input type="checkbox" :checked="animOn" @change="toggleAnim($event.target.checked)"><span class="slider"></span></label></div><div class="anim-toggle-row"><span>气泡立体感</span><div class="depth-select"><button :class="{active:bubbleDepth==='2d'}" @click="setDepth('2d')">2D</button><button :class="{active:bubbleDepth==='3d'}" @click="setDepth('3d')">3D</button><button :class="{active:bubbleDepth==='flat'}" @click="setDepth('flat')">平面</button></div></div></div></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="openAppearance()">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="openFileMgmt()">📎 附件管理</button><button class="success" @click="openBgLibrary()">🖼️ 墙纸/视频库</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
 <div v-if="currentModal==='channelMgmt'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>📺 频道管理</h3><div class="section"><h4>新建频道</h4><input id="newChName" type="text" placeholder="频道名称"><input id="newChDesc" type="text" placeholder="频道描述 (选填)"><label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px"><input type="checkbox" id="newChPrivate"> 私有频道</label><button @click="doCreateChannel()">创建频道</button><p id="chCreateMsg" style="font-size:13px"></p></div><div class="section"><h4>已有频道</h4><div v-for="ch in modalData.allChannels||[]" :key="ch.id" class="ch-mgmt-item"><div class="ch-info"><div class="ch-name">{{ch.is_private?'🔒':''}} {{ch.name}}</div><div class="ch-meta">{{ch.description||'无描述'}} · {{ch._memberCount||0}}人</div></div><button style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#667eea" @click="openChannelPerm(ch)">权限</button><button v-if="!ch.is_default" style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#dc2626" @click="doDeleteChannel(ch)">删除</button></div></div><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
@@ -777,6 +777,20 @@ const App = {
     joinChainById(id) {
       const ch = msgStore[store.currentChannelId]; if (!ch) return;
       const m = ch.msgs.find(m => m.id === id); if (m) this.joinChain(m);
+    },
+
+    async doDeleteSingleMsg(msg) {
+      this.ctxMenu = null;
+      if (!msg || !msg.id) return;
+      if (!confirm('确认删除这条消息？此操作不可恢复。')) return;
+      try {
+        const r = await fetch(API + '/api/messages/' + msg.id, {
+          method: 'DELETE',
+          headers: authH()
+        });
+        const d = await r.json();
+        if (!d.success) alert(d.message || '删除失败');
+      } catch(e) { alert('删除失败'); }
     },
   },
 
