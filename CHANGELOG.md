@@ -10,9 +10,19 @@
 - 前端管理员附件 & 墙纸库方法集,混入主 Vue 组件(`public/js/modals/files-admin-methods.js`)
 - 附件管理 / 墙纸库专用样式(`public/css/files-admin.css`)
 - 管理员用户导入/导出:批量导入用户 JSON(含预览、勾选、冲突跳过)、导出全部用户数据,兼容旧版 TeamChat 格式(`server/routes/users.js`)
+- 自定义 Emoji 系统:`EmojiRegistry` 可扩展注册表(`public/js/emoji.js`),支持 `register()` / `registerBatch()` / `addCategory()` 动态扩充;初始预装 Yahoo Messenger 经典小黄脸表情约 30 个(内联 SVG);消息中以 shortcode 形式(`:)` `:D` `<3` 等)存储,渲染时自动替换为 `<img>`
+- Emoji 选择器:输入栏新增 😊 按钮,弹出分类选择面板(经典 / 动作 / 符号),点击插入 shortcode;点击外部自动关闭
+- 消息动画:果冻弹性滑入(`@keyframes jellyIn`)、在线用户气泡水波微动(`@keyframes waterRipple`),可在设置面板开关(localStorage 持久化)
+- 气泡立体感:三挡切换 — 平面 / 2D 投影 / 3D 渐变拟物(neumorphism),可在设置面板切换(localStorage 持久化)
+- 设置面板新增「✨ 动画效果」区域(所有用户可见):包含动画开关(toggle switch)和立体感选择器
 
 ### Changed
 - 统一版本号至 v0.1.0:`package.json` 与 `README.md` 中残留的旧版本号 9.1.0 已修正
+
+### Fixed
+- 消息气泡尖角方向修正:原先 `border-bottom-left/right-radius` 导致箭头位置不对,改为 `border-top-left/right-radius` + `::before` 伪元素三角指向头像
+- 页面缩放禁止加固:`base.css` 补充 `overscroll-behavior:none`、`touch-action:pan-y`、`-ms-text-size-adjust:100%`
+- `sanitize()` 重构为先拼结果后统一做 emoji 替换,避免两条 return 路径遗漏
 
 ## [v0.1.1] - 2026-04-18
 - fix: 聊天背景图片/视频改为挂在 .messages-wrapper 上，防止跟消息一起滚动

@@ -47,48 +47,55 @@ function avatarUrl(a) {
 
 function sanitize(html) {
   if (!html) return '';
+  var result;
   if (!/<[a-zA-Z]/.test(html)) {
     const s = esc(html);
-    return s.replace(/(https?:\/\/[^\s&lt;]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
-  }
-  const t = document.createElement('div');
-  t.innerHTML = html;
-  t.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(e => e.remove());
-  const ok = { B:1, STRONG:1, I:1, EM:1, U:1, S:1, STRIKE:1, SPAN:1, FONT:1, BR:1, A:1 };
-  const okA = { style:1, color:1, href:1, target:1, rel:1 };
-  (function w(n) {
-    [...n.childNodes].forEach(c => {
-      if (c.nodeType === 1) {
-        if (!ok[c.tagName]) {
-          while (c.firstChild) c.parentNode.insertBefore(c.firstChild, c);
-          c.remove();
-        } else {
-          [...c.attributes].forEach(a => { if (!okA[a.name]) c.removeAttribute(a.name); });
-          if (c.tagName === 'A') { c.setAttribute('target', '_blank'); c.setAttribute('rel', 'noopener'); }
-          w(c);
+    result = s.replace(/(https?:\/\/[^\s&lt;]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  } else {
+    const t = document.createElement('div');
+    t.innerHTML = html;
+    t.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(e => e.remove());
+    const ok = { B:1, STRONG:1, I:1, EM:1, U:1, S:1, STRIKE:1, SPAN:1, FONT:1, BR:1, A:1 };
+    const okA = { style:1, color:1, href:1, target:1, rel:1 };
+    (function w(n) {
+      [...n.childNodes].forEach(c => {
+        if (c.nodeType === 1) {
+          if (!ok[c.tagName]) {
+            while (c.firstChild) c.parentNode.insertBefore(c.firstChild, c);
+            c.remove();
+          } else {
+            [...c.attributes].forEach(a => { if (!okA[a.name]) c.removeAttribute(a.name); });
+            if (c.tagName === 'A') { c.setAttribute('target', '_blank'); c.setAttribute('rel', 'noopener'); }
+            w(c);
+          }
         }
+      });
+    })(t);
+    const tw = document.createTreeWalker(t, NodeFilter.SHOW_TEXT, null, false);
+    const tn = [];
+    while (tw.nextNode()) tn.push(tw.currentNode);
+    tn.forEach(n => {
+      if (n.parentNode && n.parentNode.tagName === 'A') return;
+      const re = /(https?:\/\/[^\s<]+)/g;
+      if (re.test(n.textContent)) {
+        const f = document.createDocumentFragment();
+        let li = 0;
+        n.textContent.replace(re, (m, _, o) => {
+          if (o > li) f.appendChild(document.createTextNode(n.textContent.slice(li, o)));
+          const a = document.createElement('a');
+          a.href = m; a.target = '_blank'; a.rel = 'noopener'; a.textContent = m;
+          f.appendChild(a);
+          li = o + m.length;
+        });
+        if (li < n.textContent.length) f.appendChild(document.createTextNode(n.textContent.slice(li)));
+        n.parentNode.replaceChild(f, n);
       }
     });
-  })(t);
-  const tw = document.createTreeWalker(t, NodeFilter.SHOW_TEXT, null, false);
-  const tn = [];
-  while (tw.nextNode()) tn.push(tw.currentNode);
-  tn.forEach(n => {
-    if (n.parentNode && n.parentNode.tagName === 'A') return;
-    const re = /(https?:\/\/[^\s<]+)/g;
-    if (re.test(n.textContent)) {
-      const f = document.createDocumentFragment();
-      let li = 0;
-      n.textContent.replace(re, (m, _, o) => {
-        if (o > li) f.appendChild(document.createTextNode(n.textContent.slice(li, o)));
-        const a = document.createElement('a');
-        a.href = m; a.target = '_blank'; a.rel = 'noopener'; a.textContent = m;
-        f.appendChild(a);
-        li = o + m.length;
-      });
-      if (li < n.textContent.length) f.appendChild(document.createTextNode(n.textContent.slice(li)));
-      n.parentNode.replaceChild(f, n);
-    }
-  });
-  return t.innerHTML;
+    result = t.innerHTML;
+  }
+  /* Emoji: 把 shortcode 替换成 <img> */
+  if (typeof EmojiRegistry !== 'undefined') {
+    result = EmojiRegistry.replaceInHtml(result);
+  }
+  return result;
 }

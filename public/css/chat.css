@@ -14,9 +14,16 @@
 .msg-body{min-width:0}
 .msg-sender{font-size:12px;font-weight:600;color:#667eea;margin-bottom:2px}
 .msg.my .msg-sender{text-align:right;color:rgba(255,255,255,.8)}
+
+/* ===== Bubble base ===== */
 .msg-bubble{padding:10px 14px;border-radius:16px;word-wrap:break-word;line-height:1.5;position:relative}
-.msg.other .msg-bubble{background:#fff;color:#333;border-bottom-left-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
-.msg.my .msg-bubble{background:#667eea;color:#fff;border-bottom-right-radius:4px}
+.msg.other .msg-bubble{background:#fff;color:#333;border-top-left-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.msg.my .msg-bubble{background:#667eea;color:#fff;border-top-right-radius:4px}
+
+/* ===== Bubble arrow pointing at avatar ===== */
+.msg.other .msg-bubble::before{content:'';position:absolute;top:10px;left:-6px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-right:6px solid #fff}
+.msg.my .msg-bubble::before{content:'';position:absolute;top:10px;right:-6px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:6px solid #667eea}
+
 .msg-time{font-size:10px;opacity:.5;text-align:right;margin-top:4px}
 .msg-bubble img.chat-image{max-width:240px;max-height:240px;border-radius:8px;cursor:pointer;display:block;margin-top:6px}
 .msg-bubble .file-card{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,.05);border-radius:8px;margin-top:6px;cursor:pointer;font-size:13px}
@@ -24,6 +31,59 @@
 .msg.my .msg-bubble .reply-ref{border-left-color:rgba(255,255,255,.5);color:rgba(255,255,255,.7);background:rgba(255,255,255,.15)}
 .msg-content{white-space:pre-wrap;word-break:break-word}
 .msg-content a{color:inherit;text-decoration:underline}
+
+/* ===== 2D Depth ===== */
+body.bubble-2d .msg.other .msg-bubble{box-shadow:0 2px 6px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.04)}
+body.bubble-2d .msg.my .msg-bubble{box-shadow:0 2px 6px rgba(102,126,234,.25),0 1px 2px rgba(102,126,234,.1)}
+
+/* ===== 3D Depth ===== */
+body.bubble-3d .msg.other .msg-bubble{background:linear-gradient(145deg,#ffffff 0%,#f0f1f5 100%);box-shadow:3px 3px 8px rgba(0,0,0,.1),-2px -2px 6px rgba(255,255,255,.8),inset 0 1px 0 rgba(255,255,255,.9);border:1px solid rgba(0,0,0,.05)}
+body.bubble-3d .msg.my .msg-bubble{background:linear-gradient(145deg,#7b8ff0 0%,#5567d8 100%);box-shadow:3px 3px 8px rgba(102,126,234,.35),-2px -2px 6px rgba(255,255,255,.15),inset 0 1px 0 rgba(255,255,255,.2);border:1px solid rgba(102,126,234,.2)}
+body.bubble-3d .msg.other .msg-bubble::before{border-right-color:#ffffff}
+body.bubble-3d .msg.my .msg-bubble::before{border-left-color:#7b8ff0}
+
+/* ===== Jelly slide-in animation ===== */
+@keyframes jellyIn-left{
+  0%{opacity:0;transform:translateX(-30px) scale(.85)}
+  50%{transform:translateX(6px) scale(1.03)}
+  70%{transform:translateX(-3px) scale(.98)}
+  100%{opacity:1;transform:translateX(0) scale(1)}
+}
+@keyframes jellyIn-right{
+  0%{opacity:0;transform:translateX(30px) scale(.85)}
+  50%{transform:translateX(-6px) scale(1.03)}
+  70%{transform:translateX(3px) scale(.98)}
+  100%{opacity:1;transform:translateX(0) scale(1)}
+}
+body.anim-on .msg.other{animation:jellyIn-left .4s cubic-bezier(.34,1.56,.64,1) both}
+body.anim-on .msg.my{animation:jellyIn-right .4s cubic-bezier(.34,1.56,.64,1) both}
+
+/* ===== Online user water ripple ===== */
+@keyframes waterRipple{
+  0%{transform:translateY(0) rotate(0deg)}
+  25%{transform:translateY(-0.5px) rotate(0.15deg)}
+  50%{transform:translateY(0.3px) rotate(-0.1deg)}
+  75%{transform:translateY(-0.3px) rotate(0.08deg)}
+  100%{transform:translateY(0) rotate(0deg)}
+}
+body.anim-on .msg.is-online .msg-bubble{animation:waterRipple 3s ease-in-out infinite}
+
+/* ===== Emoji Picker ===== */
+.emoji-btn{width:40px;height:40px;border-radius:20px;border:none;background:#f0f0f0;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+.emoji-btn:hover{background:#e0e4f8}
+.emoji-picker{position:absolute;bottom:50px;left:0;width:320px;max-height:260px;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:500;overflow:hidden;display:flex;flex-direction:column}
+.emoji-picker-tabs{display:flex;border-bottom:1px solid #eee;overflow-x:auto;flex-shrink:0;padding:0 4px}
+.emoji-picker-tabs button{flex-shrink:0;background:none;border:none;padding:8px 10px;font-size:14px;cursor:pointer;color:#666;border-bottom:2px solid transparent;white-space:nowrap}
+.emoji-picker-tabs button.active{color:#667eea;border-bottom-color:#667eea}
+.emoji-picker-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:8px;overflow-y:auto;flex:1}
+.emoji-picker-grid span{width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:6px;font-size:22px;transition:background .1s}
+.emoji-picker-grid span:hover{background:#f0f2ff}
+.emoji-picker-img{width:24px;height:24px;object-fit:contain;pointer-events:none}
+/* Inline emoji in messages */
+img.tc-emoji{display:inline-block;width:22px;height:22px;vertical-align:text-bottom;margin:0 1px;object-fit:contain}
+@media(max-width:768px){
+  .emoji-picker{width:280px;left:-40px}
+}
 
 /* ===== Chain Card (接龙) ===== */
 .chain-card{background:linear-gradient(135deg,#f0f4ff 0%,#e8eeff 100%);border:1px solid #c7d2fe;border-radius:12px;padding:12px;margin-top:4px}
@@ -72,3 +132,17 @@
 .kicked-card{background:#fff;padding:32px;border-radius:16px;text-align:center;max-width:360px;width:90%}
 .kicked-card h3{margin-bottom:12px;color:#dc2626}
 .kicked-card p{margin-bottom:20px;color:#666;font-size:14px}
+
+/* ===== Settings: Animation toggles ===== */
+.anim-toggles{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.anim-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f9fafb;border-radius:8px}
+.anim-toggle-row span{font-size:14px;color:#333}
+.toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-switch .slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.2s}
+.toggle-switch .slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle-switch input:checked+.slider{background:#667eea}
+.toggle-switch input:checked+.slider::before{transform:translateX(20px)}
+.depth-select{display:flex;gap:6px}
+.depth-select button{padding:5px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:13px;cursor:pointer;color:#666}
+.depth-select button.active{border-color:#667eea;background:#eef2ff;color:#667eea;font-weight:600}
