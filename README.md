@@ -1,4 +1,4 @@
-# TeamChat v0.1.0 — 模块化版本
+# TeamChat v0.3.0 — 模块化版本
 
 ## 📂 项目结构
 
@@ -46,7 +46,8 @@ tm2/
     │   ├── files-admin.css      #    管理员附件 / 墙纸库专用样式
     │   └── responsive.css       #    响应式断点
     └── js/                      # ⚡ 脚本模块
-        ├── utils.js             #    工具: 转义、时间、清理
+        ├── emoji.js             #    Emoji: 可扩展表情注册表 (Yahoo Messenger 经典)
+        ├── utils.js             #    工具: 转义、时间、清理、emoji 渲染
         ├── store.js             #    状态: Vue reactive 全局状态
         ├── api.js               #    API: 频道/消息/外观加载
         ├── socket-client.js     #    Socket: 客户端连接管理
@@ -85,7 +86,7 @@ bash install-from-git.sh
 bash update.sh
 
 # 部署指定 tag (推荐生产用法)
-bash update.sh v0.1.0
+bash update.sh v0.3.0
 ```
 
 ## 🐛 分模块调试指南
@@ -113,6 +114,7 @@ bash update.sh v0.1.0
 | 通用管理弹窗 | `public/js/modals/admin-methods.js` | 在对应方法加断点 |
 | 附件 / 墙纸库弹窗 | `public/js/modals/files-admin-methods.js` | 在对应方法加断点,确认 `modalData` 字段 |
 | 消息渲染 | `public/js/utils.js` → `sanitize()` | 测试各种 HTML 输入 |
+| Emoji 系统 | `public/js/emoji.js` → `EmojiRegistry` | 控制台执行 `EmojiRegistry.allCodes()` 查看已注册表情;`EmojiRegistry.register({...})` 测试动态扩展 |
 
 ## 🎮 后续扩展方向
 

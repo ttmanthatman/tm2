@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [v0.3.1] - 2025-04-20
+
+### Added
+- Emoji 选择器替换为 93 个 Yahoo Messenger 经典 GIF 动画表情 (表情/动作/物品三分类)，来源 forums.mobirise.com CDN
+- 管理员可通过右键菜单删除单条消息 (`DELETE /api/messages/:id`)，删除后实时同步到所有客户端
+
+### Changed
+- Emoji shortcode 格式从符号式 (`:)` `B-)` `<3`) 改为命名式 (`:smile:` `:sunglasses:` `:heart:`)
+- Emoji 图片从内联 SVG data URI 改为外部 GIF 资源
+- 默认 emoji 分类 tab 从 `classic` 改为 `face`
+
+### Notes
+- 旧消息中的旧 shortcode 不再渲染为图片，显示为纯文本
+
 ### Added
 - 管理员文件管理:聊天附件列表 / 批量删除 / 批量打包下载(`server/routes/admin-files.js`)
 - 管理员墙纸库:墙纸视频列表(含被引用槽位) / 复用到指定槽位 / 批量删除(`server/routes/admin-files.js`)
