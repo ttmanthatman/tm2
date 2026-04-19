@@ -11,7 +11,7 @@ var EmojiRegistry = (function() {
   var _catSet = {};
   var _codePattern = null;
 
-  var BASE_URL = 'https://forums.mobirise.com/plugins/EmojiExtender/emoji/yahoo/';
+  var BASE_URL = '/emojis/yahoo/';
 
   function _invalidatePattern() { _codePattern = null; }
 
