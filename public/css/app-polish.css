@@ -195,7 +195,20 @@
 }
 
 /* ===== 8. iOS safe area 支持 ===== */
-@supports (padding: env(safe-area-inset-bottom)) {
+@supports (padding: env(safe-area-inset-top)) {
+
+  /* --- 顶部: 状态栏避让 --- */
+  .chat-header {
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+  .sidebar-header {
+    padding-top: calc(16px + env(safe-area-inset-top));
+  }
+  .login-page {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* --- 底部: home indicator 避让 + 消除留白 --- */
   .input-area {
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
   }
@@ -204,6 +217,19 @@
   }
   .login-card {
     margin-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* 让底部安全区显示为输入栏同色，而不是 body 灰底 */
+  .main-area::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-bottom);
+    background: #fff;
+    z-index: 10;
+    pointer-events: none;
   }
 }
 
