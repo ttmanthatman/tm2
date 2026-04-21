@@ -291,8 +291,7 @@ const App = {
           </div>
         </div>
       </div>
-      <button v-if="msgInput.trim()" class="send-btn" @mousedown.prevent @click="sendMsg()">{{store.appearance.send_text||'发送'}}</button>
-      <div v-else style="position:relative">
+      <div style="position:relative">
         <button class="plus-btn" @click.stop="showPlusMenu=!showPlusMenu;showEmojiPicker=false" title="更多"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
         <div v-if="showPlusMenu" class="plus-menu" @click.stop>
           <div class="plus-menu-item" @click="insertNewline();showPlusMenu=false"><span class="plus-menu-icon">⏎</span><span>换行</span></div>
@@ -300,6 +299,7 @@ const App = {
           <div class="plus-menu-item" @click="$refs.fileInput.click();showPlusMenu=false"><span class="plus-menu-icon">📎</span><span>文件</span></div>
         </div>
       </div>
+      <button class="send-btn" :disabled="!msgInput.trim()" @mousedown.prevent @click="sendMsg()">{{store.appearance.send_text||'发送'}}</button>
     </div>
   </div>
   <div v-if="showMembers" class="members-panel">

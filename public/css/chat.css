@@ -118,6 +118,7 @@ img.tc-emoji{display:inline-block;width:22px;height:22px;vertical-align:text-bot
 .input-area .emoji-btn:hover{background:rgba(0,0,0,.05)}
 .input-area .send-btn{height:36px;min-width:36px;padding:0 16px;border-radius:8px;border:none;background:#07c160;color:#fff;font-size:14px;font-weight:500;cursor:pointer;flex-shrink:0;white-space:nowrap}
 .input-area .send-btn:hover{background:#06ad56}
+.input-area .send-btn:disabled{opacity:.4;cursor:not-allowed;background:#07c160}
 .input-area .plus-btn{width:36px;height:36px;border-radius:50%;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#666;padding:0}
 .input-area .plus-btn:hover{background:rgba(0,0,0,.05)}
 /* Plus menu (action sheet from bottom of plus btn) */
