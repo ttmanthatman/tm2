@@ -5,7 +5,7 @@
 const multer = require("multer");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-const { UPLOAD_DIR, AVATAR_DIR, BG_DIR, ALLOWED_EXT } = require("./config");
+const { UPLOAD_DIR, AVATAR_DIR, BG_DIR, VOICE_DIR, ALLOWED_EXT } = require("./config");
 
 function fixFilename(file) {
   try {
@@ -67,4 +67,19 @@ const uploadBg = multer({
   defParamCharset: "utf8"
 });
 
-module.exports = { upload, uploadAvatar, uploadBg };
+/* ===== 语音上传 ===== */
+const voiceStorage = multer.diskStorage({
+  destination: (r, f, cb) => cb(null, VOICE_DIR),
+  filename: (r, f, cb) => cb(null, uuidv4() + ".webm")
+});
+const uploadVoice = multer({
+  storage: voiceStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (r, f, cb) => {
+    /* 只接受 webm / ogg (Opus 编码容器) */
+    const ok = /^audio\/(webm|ogg)/.test(f.mimetype);
+    cb(ok ? null : new Error("语音格式不支持"), ok);
+  }
+});
+
+module.exports = { upload, uploadAvatar, uploadBg, uploadVoice };

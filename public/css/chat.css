@@ -131,6 +131,35 @@ img.tc-emoji{display:inline-block;width:22px;height:22px;vertical-align:text-bot
 .input-area .attach-btn,.input-area .chain-btn{width:36px;height:36px;border-radius:50%;border:none;background:transparent;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .input-area .newline-btn{display:none}
 
+/* ===== Voice Recording Bar ===== */
+.voice-recording-bar{display:flex;align-items:center;gap:10px;width:100%;min-height:36px}
+.voice-cancel-btn{width:36px;height:36px;border-radius:50%;border:none;background:rgba(220,38,38,.1);color:#dc2626;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:600}
+.voice-cancel-btn:hover{background:rgba(220,38,38,.2)}
+.voice-rec-indicator{flex:1;display:flex;align-items:center;gap:8px;font-size:14px;color:#333;font-variant-numeric:tabular-nums}
+.rec-dot{width:10px;height:10px;border-radius:50%;background:#dc2626;animation:rec-blink 1s ease-in-out infinite}
+@keyframes rec-blink{0%,100%{opacity:1}50%{opacity:.3}}
+.voice-send-btn{width:36px;height:36px;border-radius:50%;border:none;background:#07c160;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.voice-send-btn:hover{background:#06ad56}
+
+/* ===== Voice Message Card ===== */
+.voice-card{display:flex;align-items:center;gap:8px;min-width:160px;padding:4px 0}
+.voice-play-btn{width:32px;height:32px;border-radius:50%;border:none;background:#07c160;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;padding-left:2px}
+.voice-play-btn:hover{background:#06ad56}
+.voice-card.playing .voice-play-btn svg{display:none}
+.voice-card.playing .voice-play-btn::after{content:'⏸';font-size:14px;padding-left:0}
+.voice-card audio{display:none}
+.voice-wave{display:flex;align-items:center;gap:2px;height:24px;flex:1}
+.voice-wave span{width:3px;border-radius:2px;background:#07c160;opacity:.35;height:8px}
+.voice-wave span:nth-child(1){height:10px}.voice-wave span:nth-child(2){height:18px}.voice-wave span:nth-child(3){height:14px}.voice-wave span:nth-child(4){height:20px}.voice-wave span:nth-child(5){height:12px}
+.voice-card.playing .voice-wave span{opacity:1;animation:voice-bar .6s ease-in-out infinite alternate}
+.voice-card.playing .voice-wave span:nth-child(1){animation-delay:0s}
+.voice-card.playing .voice-wave span:nth-child(2){animation-delay:.1s}
+.voice-card.playing .voice-wave span:nth-child(3){animation-delay:.2s}
+.voice-card.playing .voice-wave span:nth-child(4){animation-delay:.3s}
+.voice-card.playing .voice-wave span:nth-child(5){animation-delay:.4s}
+@keyframes voice-bar{0%{height:6px}100%{height:22px}}
+.voice-dur{font-size:12px;color:#999;flex-shrink:0;font-variant-numeric:tabular-nums}
+
 /* ===== Context Menu ===== */
 .msg-menu{position:fixed;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:2000;overflow:hidden;min-width:140px}
 .msg-menu .menu-item{padding:10px 16px;cursor:pointer;font-size:14px;transition:background .15s}

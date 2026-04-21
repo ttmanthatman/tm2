@@ -60,6 +60,7 @@ const migrations = [
   "ALTER TABLE messages ADD COLUMN reply_to INTEGER",
   "ALTER TABLE users ADD COLUMN last_login_at TEXT",
   "ALTER TABLE messages ADD COLUMN channel_id INTEGER DEFAULT 1",
+  "ALTER TABLE messages ADD COLUMN duration REAL DEFAULT 0",
 ];
 migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

@@ -8,7 +8,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 
-const { PORT, UPLOAD_DIR, AVATAR_DIR, BG_DIR } = require("./config");
+const { PORT, UPLOAD_DIR, AVATAR_DIR, BG_DIR, VOICE_DIR } = require("./config");
 const { db } = require("./database");
 
 /* ===== Express App ===== */
@@ -40,6 +40,7 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 app.use("/avatars", express.static(AVATAR_DIR));
 app.use("/backgrounds", express.static(BG_DIR));
+app.use("/voices", express.static(VOICE_DIR));
 
 /* ===== API 路由 ===== */
 app.use("/api", require("./routes/auth"));
