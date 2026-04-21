@@ -58,11 +58,22 @@ async function loadMessages(channelId, before) {
 
 /* ===== 外观 ===== */
 async function loadAppearance() {
+  /* 先从缓存恢复，冷启动不用等网络 */
+  try {
+    var cached = localStorage.getItem('tc_appearance');
+    if (cached) {
+      var cd = JSON.parse(cached);
+      store.appearance = cd;
+      applyAppearance(cd);
+    }
+  } catch(e) {}
+  /* 再从服务器拉最新 */
   try {
     const r = await fetch(API + '/api/settings/appearance');
     if (r.ok) {
       const d = await r.json();
       store.appearance = d;
+      localStorage.setItem('tc_appearance', JSON.stringify(d));
       applyAppearance(d);
     }
   } catch(e) {}
@@ -220,6 +231,12 @@ function applyAppearance(d) {
       lp.style.background = 'linear-gradient(135deg,' + (d.login_bg_color1 || '#667eea') + ' 0%,' + (d.login_bg_color2 || '#764ba2') + ' 100%)';
     }
   }
+
+  /* iOS Safari: JS 设置 background-image 后有时不触发 repaint, 强制刷一下 */
+  requestAnimationFrame(function() {
+    document.body.style.transform = 'translateZ(0)';
+    requestAnimationFrame(function() { document.body.style.transform = ''; });
+  });
 }
 
 /* ===== 用户导入/导出 ===== */

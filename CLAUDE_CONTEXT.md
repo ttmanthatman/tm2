@@ -6,7 +6,7 @@
 - 前端: public/ 下的纯 HTML/CSS/JS，Vue 通过 CDN 引入，无 webpack/vite
 - 后端: server/ 下按职责拆分 (config/database/middleware/routes/socket)
 - 部署: VPS + PM2 + Nginx，通过 update.sh 从 GitHub 拉取更新
-- 当前版本: v0.3.1
+- 当前版本: v0.3.4
 - 分支策略: main (稳定可部署) + feat/* 或 fix/* (开发中)
 
 ## 关键约束
@@ -16,6 +16,7 @@
 - 按文件路径逐个给出完整代码(或明确的局部替换)，方便我直接粘贴
 - 每次输出前先给变更摘要(用于 git commit message 和 CHANGELOG)
 - 每次输出的文件按照项目目录结构打包
+- 每次输出后，参考dev.sh，输出部署的完整命令行
 
 ## 模块索引
 
@@ -96,6 +97,23 @@ base.css → login.css → layout.css → chat.css → modals.css → files-admi
 ```
 
 app-polish.css 必须最后加载，它通过覆盖和增强前面的样式来提供 App 质感。
+
+## [v0.3.4] - 2026-04-21
+
+### Fixed
+- 🔴 私有频道消息通过 Socket.IO 广播给所有用户 → 改为频道 Room 定向发送
+- 🔴 已删除用户持有效 JWT 仍可调用 API → authMiddleware 增加用户存在性校验
+- 🔴 管理员被降权后旧 JWT 仍有管理员权限 → isAdmin 改为实时查 DB
+- 🟠 创建私有频道时 channelCreated 事件泄漏给所有客户端 → 仅通知创建者
+- 🟠 添加/移除频道成员时 Socket 未同步加入/离开 Room
+- 🟠 Push 续期接口 `/push/renew` 缺少认证中间件
+- 🟡 频道权限面板切换时 nonMembers 残留旧数据，部分用户不可见
+- 🟡 删除频道不清理磁盘附件文件
+- 🟡 批量删除消息无频道范围限制
+- 🟡 备份还原后 reply_to 引用断裂
+- 🟡 sanitize() 允许 style 属性导致 CSS 注入风险
+- 🟡 Emoji shortcode 替换破坏 HTML 属性中的 URL
+
 
 ## 输出格式约定
 1. 先给出**变更摘要**：一行 commit message + CHANGELOG 条目草稿

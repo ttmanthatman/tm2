@@ -22,6 +22,15 @@
 - `responsive.css` — 配合 sidebar-overlay 过渡方案调整
 - `index.html` — 引入 `app-polish.css`
 
+## 【v0.3.5]
+
+### Fixed
+- 🔴 iPhone Safari 首次加载壁纸不显示，刷新后才正常 — initSW 不再阻塞 loadAppearance
+- 🟠 登录页→聊天页切换后壁纸不生效 — enterChat 切页后 nextTick 重新 applyAppearance
+- 🟡 冷启动弱网下无壁纸闪白 — 外观配置增加 localStorage 缓存，先用缓存立即渲染
+- 🟡 iOS Safari 偶尔 JS 设置 background-image 不触发 repaint — 加 translateZ(0) 强制合成层刷新
+- 🟡 挂载尾部 applyAppearance(store.appearance) 空调用 — 删除（此时 store.appearance 为 {}）
+
 ## [v0.3.4]
 - 频道权限面板切换时未清除旧成员数据，导致 nonMembers 下拉列表遗漏用户
 - doCreateChannel 未等待 loadAllChannels 完成，可能导致频道列表状态不一致

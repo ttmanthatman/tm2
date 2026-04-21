@@ -54,7 +54,7 @@ const App = {
 
     /* ===== Init ===== */
     onMounted(async () => {
-      await initSW();
+      initSW(); /* 不 await — SW 注册不应阻塞 UI */
       await loadAppearance();
       try { const r = await fetch(API + '/api/settings/notice'); if (r.ok) { const d = await r.json(); store.notice = d; } } catch(e) {}
       try { const r = await fetch(API + '/api/settings/registration'); if (r.ok) { const d = await r.json(); store.regOpen = d.open; } } catch(e) {}
@@ -64,6 +64,11 @@ const App = {
 
     async function enterChat() {
       page.value = 'chat';
+      /* 等 Vue 渲染出 .messages-wrapper 后重新应用壁纸 */
+      await Vue.nextTick();
+      if (store.appearance && Object.keys(store.appearance).length) {
+        applyAppearance(store.appearance);
+      }
       initSocket();
       await loadChannels();
       if (!store.currentChannelId && store.channels.length) store.currentChannelId = store.channels[0].id;
@@ -842,5 +847,4 @@ document.addEventListener('click', function() {
   const app = Vue.createApp(App);
   app.config.globalProperties.$root = app._instance?.proxy;
   app.mount('#app');
-  Vue.nextTick(() => applyAppearance(store.appearance));
 })();
