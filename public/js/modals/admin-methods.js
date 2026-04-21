@@ -372,7 +372,7 @@ const AdminMethods = {
       const r = await fetch(API + '/api/channels', { method: 'POST', headers: authH({ 'Content-Type': 'application/json' }), body: JSON.stringify({ name: n, description: d, is_private: p }) });
       const res = await r.json();
       m.textContent = res.success ? '✅ 已创建' : '失败: ' + (res.message || '');
-      if (res.success) { this.loadAllChannels(); await loadChannels(); }
+      if (res.success) { await this.loadAllChannels(); await loadChannels(); }
     } catch(e) { m.textContent = '失败'; }
   },
 
@@ -383,6 +383,8 @@ const AdminMethods = {
 
   async openChannelPerm(ch) {
     this.modalData.permChannel = ch;
+    this.modalData.permMembers = [];
+    this.modalData.nonMembers = [];
     this.currentModal = 'channelPerm';
     try { const r = await fetch(API + '/api/channels/' + ch.id + '/members', { headers: authH() }); if (r.ok) this.modalData.permMembers = await r.json(); } catch(e) {}
     try {
