@@ -118,7 +118,7 @@ function setupSocket(io) {
         channel_id: chId,
         created_at: nowUtc
       };
-      io.emit("newMessage", message);
+      io.to("ch:" + chId).emit("newMessage", message);
 
       let pushText;
       if (isChain) {
@@ -162,7 +162,7 @@ function setupSocket(io) {
 
       const newContent = "[CHAIN]" + JSON.stringify(origData);
       db.prepare("UPDATE messages SET content=? WHERE id=?").run(newContent, messageId);
-      io.emit("chainUpdated", { messageId, content: newContent, channelId: origMsg.channel_id });
+      io.to("ch:" + origMsg.channel_id).emit("chainUpdated", { messageId, content: newContent, channelId: origMsg.channel_id });
       sendPushToOthers(userId, myName, "[接龙] " + myName + " 参与了: " + origData.topic, origMsg.channel_id);
     });
 

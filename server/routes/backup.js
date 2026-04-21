@@ -30,16 +30,26 @@ router.post("/restore", authMiddleware, adminMiddleware, (req, res) => {
 
   let count = 0;
   const ins = db.prepare(
-    "INSERT INTO messages (user_id,username,content,type,file_name,file_path,file_size,channel_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)"
+    "INSERT INTO messages (user_id,username,content,type,file_name,file_path,file_size,channel_id,reply_to,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)"
   );
 
   try {
+    /* 旧 ID → 新 ID 映射, 用于修复 reply_to */
+    const idMap = new Map();
+
     db.transaction(ms => {
       for (const m of ms) {
         const u = db.prepare("SELECT id FROM users WHERE username=?").get(m.username);
         if (u) {
-          ins.run(u.id, m.username, m.content, m.type, m.file_name, m.file_path, m.file_size, m.channel_id || 1, m.created_at);
+          const r = ins.run(u.id, m.username, m.content, m.type, m.file_name, m.file_path, m.file_size, m.channel_id || 1, null, m.created_at);
+          if (m.id) idMap.set(m.id, Number(r.lastInsertRowid));
           count++;
+        }
+      }
+      /* 第二遍: 修复 reply_to 引用 */
+      for (const m of ms) {
+        if (m.reply_to && m.id && idMap.has(m.id) && idMap.has(m.reply_to)) {
+          db.prepare("UPDATE messages SET reply_to=? WHERE id=?").run(idMap.get(m.reply_to), idMap.get(m.id));
         }
       }
     })(messages);

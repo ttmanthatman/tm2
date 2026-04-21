@@ -38,11 +38,14 @@ router.get("/messages", authMiddleware, (req, res) => {
 
 /* ===== 删除消息 (管理员) ===== */
 router.delete("/messages", authMiddleware, adminMiddleware, (req, res) => {
-  const { startDate, endDate } = req.body;
+  const { startDate, endDate, channelId } = req.body;
   if (!startDate || !endDate) return res.json({ success: false, message: "请提供日期" });
+  let sql = "DELETE FROM messages WHERE DATE(created_at) BETWEEN ? AND ?";
+  const params = [startDate, endDate];
+  if (channelId) { const cid = parseInt(channelId); if (!isNaN(cid) && cid > 0) { sql += " AND channel_id = ?"; params.push(cid); } }
   res.json({
     success: true,
-    deleted: db.prepare("DELETE FROM messages WHERE DATE(created_at) BETWEEN ? AND ?").run(startDate, endDate).changes
+    deleted: db.prepare(sql).run(...params).changes
   });
 });
 
@@ -89,7 +92,7 @@ router.post("/upload", authMiddleware, upload.single("file"), (req, res) => {
   };
 
   const io = req.app.get("io");
-  if (io) io.emit("newMessage", message);
+  if (io) io.to("ch:" + channelId).emit("newMessage", message);
   sendPushToOthers(req.user.userId, user.nickname || user.username,
     type === "image" ? "[图片]" : "[文件] " + req.file.originalname, channelId);
 

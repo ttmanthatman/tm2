@@ -35,7 +35,7 @@ router.post("/push/unsubscribe", authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-router.post("/push/renew", (req, res) => {
+router.post("/push/renew", authMiddleware, (req, res) => {
   const { subscription, oldEndpoint } = req.body;
   if (!subscription || !subscription.endpoint || !subscription.keys || !oldEndpoint) {
     return res.json({ success: false });

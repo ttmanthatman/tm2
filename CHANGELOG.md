@@ -22,6 +22,12 @@
 - `responsive.css` — 配合 sidebar-overlay 过渡方案调整
 - `index.html` — 引入 `app-polish.css`
 
+## [v0.3.4]
+- 频道权限面板切换时未清除旧成员数据，导致 nonMembers 下拉列表遗漏用户
+- doCreateChannel 未等待 loadAllChannels 完成，可能导致频道列表状态不一致
+- 版本号又弄错了，囧
+- 修复私有频道消息泄漏、认证缺陷及多项安全/功能 bug
+
 ## [v0.3.1] - 2026-04-20
 
 ### Added

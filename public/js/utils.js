@@ -56,7 +56,7 @@ function sanitize(html) {
     t.innerHTML = html;
     t.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(e => e.remove());
     const ok = { B:1, STRONG:1, I:1, EM:1, U:1, S:1, STRIKE:1, SPAN:1, FONT:1, BR:1, A:1 };
-    const okA = { style:1, color:1, href:1, target:1, rel:1 };
+    const okA = { color:1, href:1, target:1, rel:1 };
     (function w(n) {
       [...n.childNodes].forEach(c => {
         if (c.nodeType === 1) {

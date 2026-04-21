@@ -181,11 +181,36 @@ var EmojiRegistry = (function() {
     replaceInHtml: function(html) {
       if (!html || !Object.keys(_map).length) return html;
       var pat = _getPattern();
-      return html.replace(pat, function(match) {
-        var e = _map[match];
-        if (!e) return match;
-        return '<img class="tc-emoji" src="' + e.src + '" alt="' + e.alt + '" title="' + match + ' ' + e.alt + '">';
+      /* 用 DOM 方式只替换文本节点,避免破坏 href 等属性 */
+      var tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      var walker = document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT, null, false);
+      var textNodes = [];
+      while (walker.nextNode()) textNodes.push(walker.currentNode);
+      textNodes.forEach(function(node) {
+        if (!pat.test(node.textContent)) return;
+        pat.lastIndex = 0;
+        var frag = document.createDocumentFragment();
+        var last = 0;
+        node.textContent.replace(pat, function(match, offset) {
+          if (offset > last) frag.appendChild(document.createTextNode(node.textContent.slice(last, offset)));
+          var e = _map[match];
+          if (e) {
+            var img = document.createElement('img');
+            img.className = 'tc-emoji';
+            img.src = e.src;
+            img.alt = e.alt;
+            img.title = match + ' ' + e.alt;
+            frag.appendChild(img);
+          } else {
+            frag.appendChild(document.createTextNode(match));
+          }
+          last = offset + match.length;
+        });
+        if (last < node.textContent.length) frag.appendChild(document.createTextNode(node.textContent.slice(last)));
+        node.parentNode.replaceChild(frag, node);
       });
+      return tmp.innerHTML;
     },
     get map() { return _map; }
   };
