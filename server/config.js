@@ -18,7 +18,8 @@ const DB_PATH = path.join(APP_ROOT, "database.sqlite");
 const UPLOAD_DIR = path.join(APP_ROOT, "uploads");
 const AVATAR_DIR = path.join(APP_ROOT, "avatars");
 const BG_DIR = path.join(APP_ROOT, "backgrounds");
-[UPLOAD_DIR, AVATAR_DIR, BG_DIR].forEach(d => {
+const VOICE_DIR = path.join(APP_ROOT, "voices");
+[UPLOAD_DIR, AVATAR_DIR, BG_DIR, VOICE_DIR].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 
@@ -51,7 +52,7 @@ webpush.setVapidDetails(
 const ALLOWED_EXT = [
   ".jpg",".jpeg",".png",".gif",".webp",".bmp",
   ".pdf",".doc",".docx",".xls",".xlsx",".ppt",".pptx",
-  ".txt",".csv",".zip",".rar",".7z",".mp3",".mp4",".mov"
+  ".txt",".csv",".zip",".rar",".7z",".mp3",".mp4",".mov",".webm"
 ];
 
 const VALID_TIMEZONES = [
@@ -88,7 +89,7 @@ const DEFAULT_SETTINGS = {
 };
 
 module.exports = {
-  APP_ROOT, PORT, DB_PATH, UPLOAD_DIR, AVATAR_DIR, BG_DIR,
+  APP_ROOT, PORT, DB_PATH, UPLOAD_DIR, AVATAR_DIR, BG_DIR, VOICE_DIR,
   JWT_SECRET, vapidKeys,
   ALLOWED_EXT, VALID_TIMEZONES, DEFAULT_SETTINGS
 };

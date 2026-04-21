@@ -49,6 +49,84 @@ const App = {
     const emojiCategories = Vue.computed(function() { return EmojiRegistry.categories; });
     function emojiByCategory(key) { return EmojiRegistry.byCategory(key); }
 
+    /* ===== Voice Recording ===== */
+    const isRecording = ref(false);
+    const recordSec = ref(0);
+    let _mediaRecorder = null;
+    let _recordChunks = [];
+    let _recordTimer = null;
+    let _recordStart = 0;
+    const VOICE_MAX_SEC = 60;
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        /* 优先 Opus/webm 低码率; 回退到浏览器默认 */
+        const mimeOpts = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+        let mime = '';
+        for (const m of mimeOpts) { if (MediaRecorder.isTypeSupported(m)) { mime = m; break; } }
+        const opts = { audioBitsPerSecond: 24000 };
+        if (mime) opts.mimeType = mime;
+        _mediaRecorder = new MediaRecorder(stream, opts);
+        _recordChunks = [];
+        _mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) _recordChunks.push(e.data); };
+        _mediaRecorder.onstop = function() {
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          var dur = (Date.now() - _recordStart) / 1000;
+          if (_recordChunks.length && dur >= 0.5) {
+            var blob = new Blob(_recordChunks, { type: mime || 'audio/webm' });
+            uploadVoice(blob, Math.round(dur));
+          }
+          _recordChunks = [];
+        };
+        _recordStart = Date.now();
+        _mediaRecorder.start(500); /* 每 500ms 收集一次 */
+        isRecording.value = true;
+        recordSec.value = 0;
+        _recordTimer = setInterval(function() {
+          recordSec.value = Math.floor((Date.now() - _recordStart) / 1000);
+          if (recordSec.value >= VOICE_MAX_SEC) stopRecording();
+        }, 300);
+      } catch (e) {
+        alert('无法访问麦克风，请检查浏览器权限。');
+      }
+    }
+
+    function stopRecording() {
+      if (_recordTimer) { clearInterval(_recordTimer); _recordTimer = null; }
+      if (_mediaRecorder && _mediaRecorder.state !== 'inactive') _mediaRecorder.stop();
+      isRecording.value = false;
+    }
+
+    function cancelRecording() {
+      if (_recordTimer) { clearInterval(_recordTimer); _recordTimer = null; }
+      if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
+        _recordChunks = []; /* 清空使 onstop 不上传 */
+        _mediaRecorder.stop();
+      }
+      isRecording.value = false;
+    }
+
+    async function uploadVoice(blob, duration) {
+      var fd = new FormData();
+      fd.append('voice', blob, 'voice.webm');
+      fd.append('channelId', store.currentChannelId);
+      fd.append('duration', duration);
+      try {
+        var r = await fetch(API + '/api/upload-voice', { method: 'POST', headers: { 'Authorization': 'Bearer ' + store.token }, body: fd });
+        var d = await r.json();
+        if (!d.success) alert(d.message || '发送语音失败');
+      } catch (e) { alert('发送语音失败'); }
+    }
+
+    function fmtDuration(s) {
+      if (!s && s !== 0) return '0:00';
+      var sec = Math.round(s);
+      var m = Math.floor(sec / 60);
+      var ss = sec % 60;
+      return m + ':' + (ss < 10 ? '0' : '') + ss;
+    }
+
     const currentChannel = computed(() => store.channels.find(c => c.id === store.currentChannelId) || null);
     const currentMessages = computed(() => { const ch = msgStore[store.currentChannelId]; return ch ? ch.msgs : []; });
     const onlineSet = computed(() => new Set(store.onlineUsers.map(u => u.username)));
@@ -193,7 +271,8 @@ const App = {
       togglePush, checkPush,
       animOn, bubbleDepth, showEmojiPicker, showPlusMenu, emojiTab,
       toggleAnim, setDepth, insertEmoji, applyEffectClasses,
-      emojiCategories, emojiByCategory
+      emojiCategories, emojiByCategory,
+      isRecording, recordSec, startRecording, stopRecording, cancelRecording, fmtDuration, VOICE_MAX_SEC
     };
   },
 
@@ -265,6 +344,14 @@ const App = {
               <div v-else-if="m.type==='text'" class="msg-content" v-html="sanitize(m.content)"></div>
               <img v-else-if="m.type==='image'" class="chat-image" :src="API+'/uploads/'+encodeURIComponent(m.file_path)" :alt="m.file_name" @click="currentModal='imagePreview';modalData={src:API+'/uploads/'+encodeURIComponent(m.file_path)}">
               <div v-else-if="m.type==='file'" class="file-card" @click="downloadFile(API+'/uploads/'+encodeURIComponent(m.file_path),m.file_name)">📄 {{m.file_name}} ({{fmtSize(m.file_size)}})</div>
+              <div v-else-if="m.type==='voice'" class="voice-card">
+                <button class="voice-play-btn" @click.stop="$event.target.closest('.voice-card').querySelector('audio').paused?$event.target.closest('.voice-card').querySelector('audio').play():$event.target.closest('.voice-card').querySelector('audio').pause()">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                <audio :src="API+'/voices/'+encodeURIComponent(m.file_path)" preload="metadata" @play="$event.target.closest('.voice-card').classList.add('playing')" @pause="$event.target.closest('.voice-card').classList.remove('playing')" @ended="$event.target.closest('.voice-card').classList.remove('playing')"></audio>
+                <div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
+                <span class="voice-dur">{{fmtDuration(m.duration)}}</span>
+              </div>
               <div class="msg-time">{{fmtTime(m.created_at)}}</div>
             </div>
           </div>
@@ -277,7 +364,15 @@ const App = {
       <button @click="replyTo=null">✕</button>
     </div>
     <div class="input-area">
-      <button class="voice-btn" title="语音消息 (开发中)" @click="alert('语音消息功能开发中…')"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+      <div v-if="isRecording" class="voice-recording-bar">
+        <button class="voice-cancel-btn" @click="cancelRecording()" title="取消">✕</button>
+        <div class="voice-rec-indicator"><span class="rec-dot"></span> {{fmtDuration(recordSec)}} / {{fmtDuration(VOICE_MAX_SEC)}}</div>
+        <button class="voice-send-btn" @click="stopRecording()" title="发送语音">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <template v-else>
+      <button class="voice-btn" title="语音消息" @click="startRecording()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
       <input ref="fileInput" type="file" hidden @change="uploadFile($event.target.files[0]);$event.target.value=''">
       <textarea v-model="msgInput" placeholder="输入消息..." rows="1" enterkeyhint="send" @keydown="handleKey" @input="autoGrow"></textarea>
       <div style="position:relative">
@@ -300,6 +395,7 @@ const App = {
         </div>
       </div>
       <button class="send-btn" :disabled="!msgInput.trim()" @mousedown.prevent @click="sendMsg()">{{store.appearance.send_text||'发送'}}</button>
+      </template>
     </div>
   </div>
   <div v-if="showMembers" class="members-panel">
@@ -657,6 +753,7 @@ const App = {
         <option value="">全部类型</option>
         <option value="image">仅图片</option>
         <option value="file">仅文件</option>
+        <option value="voice">仅语音</option>
       </select>
       <input type="text" v-model="modalData.filesFilter.q" placeholder="按文件名搜索…" @keyup.enter="loadFiles()">
       <button @click="loadFiles()" style="width:auto!important;margin:0!important;padding:8px 14px!important;font-size:13px!important">搜索</button>
@@ -678,10 +775,10 @@ const App = {
         <img v-if="f.type==='image' && f.exists" class="fm-thumb is-img" :src="API+'/uploads/'+encodeURIComponent(f.file_path)" alt="">
         <div v-else class="fm-thumb">{{fileIcon(f)}}</div>
         <div class="fm-info">
-          <div class="fm-name" :title="f.file_name">{{f.file_name}}</div>
+          <div class="fm-name" :title="f.file_name">{{f.type==='voice'?'🎤 语音消息 ('+fmtDuration(f.duration)+')':f.file_name}}</div>
           <div class="fm-meta">{{fmtSize(f.file_size)}} · {{f.nickname||f.username}} · #{{f.channel_name||f.channel_id}} · {{fmtTime(f.created_at)}}</div>
         </div>
-        <a v-if="f.exists" class="fm-action" :href="API+'/uploads/'+encodeURIComponent(f.file_path)" :download="f.file_name" @click.stop="">下载</a>
+        <a v-if="f.exists" class="fm-action" :href="(f.type==='voice'?API+'/voices/':API+'/uploads/')+encodeURIComponent(f.file_path)" :download="f.file_name" @click.stop="">下载</a>
       </div>
     </div>
     <p v-if="modalData.filesMsg" style="font-size:13px;text-align:center;margin-top:10px">{{modalData.filesMsg}}</p>
@@ -752,6 +849,7 @@ const App = {
       const name = m.nickname || m.username;
       if (m.type === 'image') return name + ': [图片]';
       if (m.type === 'file') return name + ': [文件]';
+      if (m.type === 'voice') return name + ': [语音消息]';
       return name + ': ' + (m.content || '').replace(/<[^>]*>/g, '').substring(0, 40);
     },
 

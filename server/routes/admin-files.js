@@ -10,7 +10,7 @@ const archiver = require("archiver");
 
 const { db, getSetting, setSetting, normalizeToUTC } = require("../database");
 const { authMiddleware, adminMiddleware } = require("../middleware");
-const { UPLOAD_DIR, BG_DIR } = require("../config");
+const { UPLOAD_DIR, BG_DIR, VOICE_DIR } = require("../config");
 
 const router = express.Router();
 
@@ -18,20 +18,20 @@ const router = express.Router();
  *  聊天附件管理
  * ============================================================ */
 
-/* 列表: 来自 messages 表中 type=image|file 的记录 */
+/* 列表: 来自 messages 表中 type=image|file|voice 的记录 */
 router.get("/admin/uploads", authMiddleware, adminMiddleware, (req, res) => {
   const { type, channelId, username, q } = req.query;
   let sql = `
     SELECT m.id, m.user_id, m.username, m.type, m.file_name, m.file_path,
-           m.file_size, m.channel_id, m.created_at,
+           m.file_size, m.duration, m.channel_id, m.created_at,
            u.nickname, c.name AS channel_name
       FROM messages m
       LEFT JOIN users u    ON u.id = m.user_id
       LEFT JOIN channels c ON c.id = m.channel_id
-     WHERE m.type IN ('image','file')
+     WHERE m.type IN ('image','file','voice')
        AND m.file_path IS NOT NULL AND m.file_path != ''`;
   const params = [];
-  if (type === "image" || type === "file") { sql += " AND m.type = ?"; params.push(type); }
+  if (type === "image" || type === "file" || type === "voice") { sql += " AND m.type = ?"; params.push(type); }
   if (channelId) { const cid = parseInt(channelId); if (!isNaN(cid)) { sql += " AND m.channel_id = ?"; params.push(cid); } }
   if (username) { sql += " AND m.username = ?"; params.push(String(username)); }
   if (q) { sql += " AND m.file_name LIKE ?"; params.push("%" + String(q).replace(/[%_]/g, "\\$&") + "%"); }
@@ -39,8 +39,9 @@ router.get("/admin/uploads", authMiddleware, adminMiddleware, (req, res) => {
 
   const rows = db.prepare(sql).all(...params).map(r => {
     r.created_at = normalizeToUTC(r.created_at);
-    /* 检查磁盘是否仍存在,顺便修正大小 */
-    const abs = path.join(UPLOAD_DIR, r.file_path);
+    /* 语音文件在 VOICE_DIR, 其它在 UPLOAD_DIR */
+    const dir = r.type === "voice" ? VOICE_DIR : UPLOAD_DIR;
+    const abs = path.join(dir, r.file_path);
     let exists = false, realSize = r.file_size;
     try {
       const st = fs.statSync(abs);
@@ -66,16 +67,17 @@ router.post("/admin/uploads/delete", authMiddleware, adminMiddleware, (req, res)
 
   const ph = ids.map(() => "?").join(",");
   const rows = db.prepare(
-    `SELECT id, file_path, channel_id FROM messages
+    `SELECT id, type, file_path, channel_id FROM messages
       WHERE id IN (${ph})
-        AND type IN ('image','file')
+        AND type IN ('image','file','voice')
         AND file_path IS NOT NULL AND file_path != ''`
   ).all(...ids);
 
   let diskRemoved = 0, diskMissing = 0;
   rows.forEach(r => {
-    const abs = path.join(UPLOAD_DIR, r.file_path);
-    if (!abs.startsWith(UPLOAD_DIR + path.sep)) return; /* 路径穿越保护 */
+    const dir = r.type === "voice" ? VOICE_DIR : UPLOAD_DIR;
+    const abs = path.join(dir, r.file_path);
+    if (!abs.startsWith(dir + path.sep)) return; /* 路径穿越保护 */
     try { fs.unlinkSync(abs); diskRemoved++; }
     catch (e) { if (e.code === "ENOENT") diskMissing++; }
   });
@@ -113,10 +115,13 @@ router.get("/admin/uploads/download-zip", (req, res) => {
 
   const ph = ids.map(() => "?").join(",");
   const rows = db.prepare(
-    `SELECT id, file_path, file_name FROM messages
-      WHERE id IN (${ph})
-        AND type IN ('image','file')
-        AND file_path IS NOT NULL AND file_path != ''`
+    `SELECT m.id, m.type, m.file_path, m.file_name, m.username, m.created_at,
+            c.name AS channel_name
+       FROM messages m
+       LEFT JOIN channels c ON c.id = m.channel_id
+      WHERE m.id IN (${ph})
+        AND m.type IN ('image','file','voice')
+        AND m.file_path IS NOT NULL AND m.file_path != ''`
   ).all(...ids);
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
@@ -136,10 +141,19 @@ router.get("/admin/uploads/download-zip", (req, res) => {
   /* 同名去重: 后缀加 (1)(2) */
   const used = new Map();
   rows.forEach(r => {
-    const abs = path.join(UPLOAD_DIR, r.file_path);
-    if (!abs.startsWith(UPLOAD_DIR + path.sep)) return;
+    const dir = r.type === "voice" ? VOICE_DIR : UPLOAD_DIR;
+    const abs = path.join(dir, r.file_path);
+    if (!abs.startsWith(dir + path.sep)) return;
     if (!fs.existsSync(abs)) return;
-    let name = r.file_name || r.file_path;
+    /* 语音文件使用 用户名_频道_时间.webm 命名 */
+    let name;
+    if (r.type === "voice") {
+      const ts = (r.created_at || "").replace(/[:.]/g, "-").replace("T", "_").slice(0, 19);
+      const ch = (r.channel_name || "unknown").replace(/[\/\\:*?"<>|]/g, "_");
+      name = `${r.username}_${ch}_${ts}.webm`;
+    } else {
+      name = r.file_name || r.file_path;
+    }
     if (used.has(name)) {
       const n = used.get(name) + 1; used.set(name, n);
       const ext = path.extname(name); const base = name.slice(0, name.length - ext.length);

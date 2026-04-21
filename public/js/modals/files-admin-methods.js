@@ -98,8 +98,9 @@ const FilesAdminMethods = {
       /* 单个: 直接下载原文件 */
       const f = (this.modalData.files || []).find(x => x.id === [...sel][0]);
       if (f) {
+        const base = f.type === 'voice' ? API + '/voices/' : API + '/uploads/';
         const a = document.createElement('a');
-        a.href = API + '/uploads/' + encodeURIComponent(f.file_path);
+        a.href = base + encodeURIComponent(f.file_path);
         a.download = f.file_name || f.file_path;
         document.body.appendChild(a); a.click(); a.remove();
       }
@@ -116,6 +117,7 @@ const FilesAdminMethods = {
 
   fileIcon(f) {
     if (f.type === 'image') return '🖼️';
+    if (f.type === 'voice') return '🎤';
     const ext = (f.file_name || '').split('.').pop().toLowerCase();
     if (['mp4','mov','webm','m4v'].includes(ext)) return '🎬';
     if (['mp3','wav','m4a'].includes(ext)) return '🎵';
