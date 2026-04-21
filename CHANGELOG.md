@@ -23,6 +23,17 @@
 - `index.html` — 引入 `app-polish.css`
 
 ## 【v0.3.5]
+- 输入栏重构为微信风格布局：[🎙 语音] [输入框] [😊 表情] [➕/发送]
+- 语音按钮预留（点击提示"开发中"）
+- 新增加号菜单，收纳换行、接龙、文件上传功能
+- 输入框有文字时加号自动切换为发送按钮
+- 输入栏背景改为微信同款浅灰 #f7f7f8，发送按钮改为微信绿 #07c160
+
+## [v0.3.4]
+- 频道权限面板切换时未清除旧成员数据，导致 nonMembers 下拉列表遗漏用户
+- doCreateChannel 未等待 loadAllChannels 完成，可能导致频道列表状态不一致
+- 版本号又弄错了，囧
+- 修复私有频道消息泄漏、认证缺陷及多项安全/功能 bug
 
 ### Fixed
 - 🔴 iPhone Safari 首次加载壁纸不显示，刷新后才正常 — initSW 不再阻塞 loadAppearance
@@ -30,12 +41,6 @@
 - 🟡 冷启动弱网下无壁纸闪白 — 外观配置增加 localStorage 缓存，先用缓存立即渲染
 - 🟡 iOS Safari 偶尔 JS 设置 background-image 不触发 repaint — 加 translateZ(0) 强制合成层刷新
 - 🟡 挂载尾部 applyAppearance(store.appearance) 空调用 — 删除（此时 store.appearance 为 {}）
-
-## [v0.3.4]
-- 频道权限面板切换时未清除旧成员数据，导致 nonMembers 下拉列表遗漏用户
-- doCreateChannel 未等待 loadAllChannels 完成，可能导致频道列表状态不一致
-- 版本号又弄错了，囧
-- 修复私有频道消息泄漏、认证缺陷及多项安全/功能 bug
 
 ## [v0.3.1] - 2026-04-20
 
