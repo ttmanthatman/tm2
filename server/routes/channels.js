@@ -3,8 +3,11 @@
  * 频道 CRUD、成员管理、权限控制
  */
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const { db } = require("../database");
 const { authMiddleware, adminMiddleware } = require("../middleware");
+const { UPLOAD_DIR } = require("../config");
 
 const router = express.Router();
 
@@ -59,7 +62,22 @@ router.post("/channels", authMiddleware, adminMiddleware, (req, res) => {
 
     const ch = db.prepare("SELECT * FROM channels WHERE id=?").get(chId);
     const io = req.app.get("io");
-    if (io) io.emit("channelCreated", ch);
+    if (io) {
+      if (is_private) {
+        /* 私有频道: 只通知创建者自身 */
+        const onlineUsers = req.app.get("onlineUsers");
+        if (onlineUsers) {
+          for (const [sid, info] of onlineUsers.entries()) {
+            if (info.userId === req.user.userId) {
+              const s = io.sockets.sockets.get(sid);
+              if (s) { s.join("ch:" + chId); s.emit("channelCreated", ch); }
+            }
+          }
+        }
+      } else {
+        io.emit("channelCreated", ch);
+      }
+    }
     res.json({ success: true, channel: ch });
   } catch(e) {
     res.json({ success: false, message: "创建失败" });
@@ -71,6 +89,17 @@ router.delete("/channels/:id", authMiddleware, adminMiddleware, (req, res) => {
   const ch = db.prepare("SELECT * FROM channels WHERE id=?").get(req.params.id);
   if (!ch) return res.json({ success: false, message: "频道不存在" });
   if (ch.is_default) return res.json({ success: false, message: "不能删除默认频道" });
+
+  /* 清理磁盘上的附件 */
+  const files = db.prepare(
+    "SELECT file_path FROM messages WHERE channel_id=? AND file_path IS NOT NULL AND file_path != ''"
+  ).all(ch.id);
+  files.forEach(f => {
+    const abs = path.join(UPLOAD_DIR, f.file_path);
+    if (abs.startsWith(UPLOAD_DIR + path.sep)) {
+      try { fs.unlinkSync(abs); } catch(e) {}
+    }
+  });
 
   db.prepare("DELETE FROM messages WHERE channel_id=?").run(ch.id);
   db.prepare("DELETE FROM channel_members WHERE channel_id=?").run(ch.id);
@@ -98,7 +127,19 @@ router.post("/channels/:id/members", authMiddleware, adminMiddleware, (req, res)
       req.params.id, user.id, role || "member"
     );
     const io = req.app.get("io");
-    if (io) io.emit("membershipChanged", {});
+    if (io) {
+      /* 让该用户的 socket 加入频道 Room */
+      const onlineUsers = req.app.get("onlineUsers");
+      if (onlineUsers) {
+        for (const [sid, info] of onlineUsers.entries()) {
+          if (info.userId === user.id) {
+            const s = io.sockets.sockets.get(sid);
+            if (s) s.join("ch:" + req.params.id);
+          }
+        }
+      }
+      io.emit("membershipChanged", {});
+    }
     res.json({ success: true });
   } catch(e) {
     res.json({ success: false, message: "添加失败" });
@@ -116,7 +157,20 @@ router.put("/channels/:id/members/:userId", authMiddleware, adminMiddleware, (re
 router.delete("/channels/:id/members/:userId", authMiddleware, adminMiddleware, (req, res) => {
   db.prepare("DELETE FROM channel_members WHERE channel_id=? AND user_id=?").run(req.params.id, req.params.userId);
   const io = req.app.get("io");
-  if (io) io.emit("membershipChanged", {});
+  if (io) {
+    /* 让该用户的 socket 离开频道 Room */
+    const onlineUsers = req.app.get("onlineUsers");
+    if (onlineUsers) {
+      const uid = parseInt(req.params.userId);
+      for (const [sid, info] of onlineUsers.entries()) {
+        if (info.userId === uid) {
+          const s = io.sockets.sockets.get(sid);
+          if (s) s.leave("ch:" + req.params.id);
+        }
+      }
+    }
+    io.emit("membershipChanged", {});
+  }
   res.json({ success: true });
 });
 
