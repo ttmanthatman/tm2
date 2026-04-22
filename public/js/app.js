@@ -99,6 +99,7 @@ const App = {
     let _recordChunks = [];
     let _recordTimer = null;
     let _recordStart = 0;
+    let _cancelled = false;
     const VOICE_MAX_SEC = 60;
 
     async function startRecording() {
@@ -112,15 +113,17 @@ const App = {
         if (mime) opts.mimeType = mime;
         _mediaRecorder = new MediaRecorder(stream, opts);
         _recordChunks = [];
+        _cancelled = false;
         _mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) _recordChunks.push(e.data); };
         _mediaRecorder.onstop = function() {
           stream.getTracks().forEach(function(t) { t.stop(); });
           var dur = (Date.now() - _recordStart) / 1000;
-          if (_recordChunks.length && dur >= 0.5) {
+          if (!_cancelled && _recordChunks.length && dur >= 0.5) {
             var blob = new Blob(_recordChunks, { type: mime || 'audio/webm' });
             uploadVoice(blob, Math.round(dur));
           }
           _recordChunks = [];
+          _cancelled = false;
         };
         _recordStart = Date.now();
         _mediaRecorder.start(500); /* 每 500ms 收集一次 */
@@ -144,7 +147,7 @@ const App = {
     function cancelRecording() {
       if (_recordTimer) { clearInterval(_recordTimer); _recordTimer = null; }
       if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
-        _recordChunks = []; /* 清空使 onstop 不上传 */
+        _cancelled = true; /* 标志位防止 onstop 异步回调中上传 */
         _mediaRecorder.stop();
       }
       isRecording.value = false;
@@ -789,6 +792,37 @@ const App = {
         <label class="field-label" style="margin-top:8px">倒角宽度: {{modalData.appDraft.bubble_3d_bevel}}%</label>
         <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_bevel" style="width:100%">
         <p class="hint">倒角控制气泡边缘亮暗棱的宽度。0=柔和发光, 100=硬朗棱角。</p>
+
+        <!-- 动态气泡 (陀螺仪) -->
+        <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:linear-gradient(135deg,#f8f9ff,#f0f4ff)">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500;color:#333">
+            <input type="checkbox" v-model="modalData.appDraft.bubble_dynamic_on"> 🔮 动态光照 (陀螺仪)
+          </label>
+          <p class="hint" style="margin-top:6px">
+            开启后气泡的高光、渐变、阴影会跟随手机倾斜实时变化，仿佛气泡是真实的 3D 物体。
+            需要移动设备支持陀螺仪; 桌面端无效。
+          </p>
+          <div v-if="modalData.appDraft.bubble_dynamic_on" style="margin-top:8px">
+            <div class="gyro-status" :class="{warn:!modalData.gyroState.supported}" style="font-size:13px;padding:4px 0">
+              {{modalData.gyroState.msg}}
+            </div>
+            <div v-if="modalData.gyroState.needsPerm && !modalData.gyroState.permGranted" style="margin-top:6px">
+              <button class="secondary" @click="doRequestGyroPerm()" style="font-size:13px">🔓 授权陀螺仪 (iOS)</button>
+            </div>
+            <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+              <button @click="modalData.gyroState.capturing ? doStopGyroCapture() : doStartGyroCapture()"
+                      :disabled="!modalData.gyroState.supported"
+                      style="font-size:13px">
+                {{modalData.gyroState.capturing ? '⏹ 停止测试' : '📡 测试陀螺仪'}}
+              </button>
+              <button v-if="modalData.gyroState.capturing" @click="doSaveGyroBaseline()"
+                      class="secondary" style="font-size:13px">🔄 重置基线</button>
+            </div>
+            <div v-if="modalData.gyroState.live" style="margin-top:6px;font-size:12px;color:#667eea;font-family:monospace">
+              倾斜: X={{modalData.gyroState.live.tiltX?.toFixed(2)}} Y={{modalData.gyroState.live.tiltY?.toFixed(2)}}
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 描边设置 (所有模式可用) -->
@@ -869,7 +903,7 @@ const App = {
       <h4>📱 视差壁纸 (Parallax / Perspective) <span class="exp-tag">实验性</span></h4>
       <p class="hint">
         启用后, 上方设置的图片/视频背景会随手机姿态轻微位移, 模拟透视景深。
-        此功能后期会扩展为多图层穿透视差; 当前为接口预留, 同时已可工作于单层背景。
+        此功能后期会扩展为多图层穿透视差; 当前为接口预留。
       </p>
 
       <label class="parallax-toggle">
@@ -879,36 +913,6 @@ const App = {
 
       <label class="field-label">视差强度: {{modalData.appDraft.parallax_strength}}</label>
       <input type="range" min="0" max="100" step="1" v-model.number="modalData.appDraft.parallax_strength" style="width:100%">
-
-      <div class="gyro-box">
-        <div class="gyro-status" :class="{warn:!modalData.gyroState.supported}">
-          {{modalData.gyroState.msg}}
-        </div>
-
-        <div v-if="modalData.gyroState.live" class="gyro-live">
-          实时姿态: β={{modalData.gyroState.live.beta?.toFixed(1)}}°
-          γ={{modalData.gyroState.live.gamma?.toFixed(1)}}°
-          α={{modalData.gyroState.live.alpha?.toFixed(1)}}°
-        </div>
-
-        <div v-if="modalData.gyroState.baselineLocal" class="gyro-baseline">
-          已采基线: β={{modalData.gyroState.baselineLocal.beta.toFixed(2)}}°
-          γ={{modalData.gyroState.baselineLocal.gamma.toFixed(2)}}°
-          ({{modalData.gyroState.baselineLocal.samples}} 样本)
-        </div>
-
-        <div class="gyro-actions">
-          <button v-if="modalData.gyroState.needsPerm && !modalData.gyroState.permGranted"
-                  class="secondary" @click="doRequestGyroPerm()">🔓 授权陀螺仪</button>
-          <button :disabled="!modalData.gyroState.supported || modalData.gyroState.capturing"
-                  @click="doStartGyroCapture()">
-            {{modalData.gyroState.capturing?'📡 采集中…':'📍 校准 (放平 2 秒)'}}
-          </button>
-          <button v-if="modalData.gyroState.baselineLocal" class="success" @click="doSaveGyroBaseline()">
-            💾 仅保存基线
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- ===== 底部操作 ===== -->
