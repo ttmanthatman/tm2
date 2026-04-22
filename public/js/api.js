@@ -151,6 +151,72 @@ function _removeBgVideo(host) {
   if (old) old.remove();
 }
 
+/* ===== Bubble Style helpers ===== */
+function _hexToHSL(hex) {
+  if (!hex || hex.length < 7) return { h: 0, s: 0, l: 50 };
+  var r = parseInt(hex.slice(1,3),16)/255;
+  var g = parseInt(hex.slice(3,5),16)/255;
+  var b = parseInt(hex.slice(5,7),16)/255;
+  var max = Math.max(r,g,b), min = Math.min(r,g,b);
+  var h = 0, s = 0, l = (max+min)/2;
+  if (max !== min) {
+    var d = max - min;
+    s = l > .5 ? d/(2-max-min) : d/(max+min);
+    if (max === r) h = ((g-b)/d + (g<b?6:0)) / 6;
+    else if (max === g) h = ((b-r)/d + 2) / 6;
+    else h = ((r-g)/d + 4) / 6;
+  }
+  return { h: h*360, s: s*100, l: l*100 };
+}
+function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
+
+function _applyBubbleStyle(d) {
+  var root = document.documentElement.style;
+  var body = document.body;
+  var mode = d.bubble_style || 'flat';
+
+  /* 清除所有 bubble mode class */
+  body.classList.remove('bubble-2d-single','bubble-2d-flow','bubble-3d');
+  if (mode !== 'flat') body.classList.add('bubble-' + mode);
+
+  var myC1   = d.bubble_my_color1    || '#667eea';
+  var myC2   = d.bubble_my_color2    || '#764ba2';
+  var otC1   = d.bubble_other_color1 || '#ffffff';
+  var otC2   = d.bubble_other_color2 || '#e8eeff';
+  var myTxt  = d.bubble_my_text      || '#ffffff';
+  var otTxt  = d.bubble_other_text   || '#333333';
+  var angle  = (parseInt(d.bubble_gradient_angle) || 135) + 'deg';
+  var t      = (parseFloat(d.bubble_3d_intensity) || 60) / 100;
+
+  root.setProperty('--bubble-my-c1',    myC1);
+  root.setProperty('--bubble-my-c2',    myC2);
+  root.setProperty('--bubble-other-c1', otC1);
+  root.setProperty('--bubble-other-c2', otC2);
+  root.setProperty('--bubble-my-color', myTxt);
+  root.setProperty('--bubble-other-color', otTxt);
+  root.setProperty('--bubble-angle',    angle);
+  root.setProperty('--bubble-3d-t',     String(t));
+
+  /* flat / 2d 模式: 直接用 c1 作为 bg 和 arrow */
+  if (mode === 'flat') {
+    root.setProperty('--bubble-my-bg',    myC1);
+    root.setProperty('--bubble-other-bg', otC1);
+  }
+  /* arrow 始终用 c1 (渐变起始色侧，视觉最接近) */
+  root.setProperty('--bubble-my-arrow',    myC1);
+  root.setProperty('--bubble-other-arrow', otC1);
+
+  /* 3D 模式: 计算高光/阴影 HSL 色 */
+  if (mode === '3d') {
+    var m1 = _hexToHSL(myC1), m2 = _hexToHSL(myC2);
+    root.setProperty('--b3d-my-hi', _hsl(m1.h, Math.max(m1.s-10,0), Math.min(m1.l+25*t, 97)));
+    root.setProperty('--b3d-my-sh', _hsl(m2.h+5, Math.min(m2.s+10,100), Math.max(m2.l-20*t, 5)));
+    var o1 = _hexToHSL(otC1), o2 = _hexToHSL(otC2);
+    root.setProperty('--b3d-ot-hi', _hsl(o1.h, Math.max(o1.s-10,0), Math.min(o1.l+15*t, 99)));
+    root.setProperty('--b3d-ot-sh', _hsl(o2.h+5, Math.min(o2.s+10,100), Math.max(o2.l-15*t, 10)));
+  }
+}
+
 function applyAppearance(d) {
   if (!d) return;
   if (d.timezone) store.timezone = d.timezone;
@@ -239,6 +305,9 @@ function applyAppearance(d) {
       lp.style.background = 'linear-gradient(135deg,' + (d.login_bg_color1 || '#667eea') + ' 0%,' + (d.login_bg_color2 || '#764ba2') + ' 100%)';
     }
   }
+
+  /* ===== 气泡样式 ===== */
+  _applyBubbleStyle(d);
 
   /* iOS Safari: JS 设置 background-image 后有时不触发 repaint, 强制刷一下 */
   requestAnimationFrame(function() {
