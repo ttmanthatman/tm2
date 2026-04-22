@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+## [v0.4.2]
+- 修复：取消录音时增加 _cancelled 标志位，onstop 回调检查该标志，彻底阻止上传
+- 修复：语音录制自动检测实际 MIME 类型并使用正确扩展名，支持 iOS Safari 的 mp4 录制
+- 修复：后端 fileFilter 增加 audio/mp4 和 audio/aac 支持
+- 修复：语音静态服务增加正确的 Content-Type 头
 
 ## [v0.4.1]
 - ✨ 新增 @提及自动补全：输入 @ 弹出成员列表，支持模糊搜索、键盘↑↓选择

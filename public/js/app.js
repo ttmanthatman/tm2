@@ -99,25 +99,39 @@ const App = {
     let _recordChunks = [];
     let _recordTimer = null;
     let _recordStart = 0;
+    let _cancelled = false;       /* 取消标志，onstop 检查此标志决定是否上传 */
+    let _actualMime = '';          /* MediaRecorder 实际使用的 MIME 类型 */
     const VOICE_MAX_SEC = 60;
+
+    /* MIME → 文件扩展名映射 */
+    var _mimeExtMap = {
+      'audio/webm': '.webm', 'audio/ogg': '.ogg',
+      'audio/mp4': '.m4a', 'audio/aac': '.m4a',
+      'audio/x-m4a': '.m4a', 'audio/mpeg': '.mp3'
+    };
 
     async function startRecording() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        /* 优先 Opus/webm 低码率; 回退到浏览器默认 */
+        /* 优先 Opus/webm 低码率; 回退到浏览器默认 (iOS Safari → mp4) */
         const mimeOpts = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
         let mime = '';
         for (const m of mimeOpts) { if (MediaRecorder.isTypeSupported(m)) { mime = m; break; } }
         const opts = { audioBitsPerSecond: 24000 };
         if (mime) opts.mimeType = mime;
         _mediaRecorder = new MediaRecorder(stream, opts);
+        /* 取 MediaRecorder 真正使用的 mimeType (去掉 codecs 参数) */
+        _actualMime = (_mediaRecorder.mimeType || mime || 'audio/webm').split(';')[0].trim();
         _recordChunks = [];
+        _cancelled = false;
         _mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) _recordChunks.push(e.data); };
         _mediaRecorder.onstop = function() {
           stream.getTracks().forEach(function(t) { t.stop(); });
+          /* —— 关键：检查 _cancelled 标志 —— */
+          if (_cancelled) { _recordChunks = []; return; }
           var dur = (Date.now() - _recordStart) / 1000;
           if (_recordChunks.length && dur >= 0.5) {
-            var blob = new Blob(_recordChunks, { type: mime || 'audio/webm' });
+            var blob = new Blob(_recordChunks, { type: _actualMime });
             uploadVoice(blob, Math.round(dur));
           }
           _recordChunks = [];
@@ -142,17 +156,19 @@ const App = {
     }
 
     function cancelRecording() {
+      _cancelled = true;           /* 先置标志，onstop 里据此跳过上传 */
       if (_recordTimer) { clearInterval(_recordTimer); _recordTimer = null; }
       if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
-        _recordChunks = []; /* 清空使 onstop 不上传 */
         _mediaRecorder.stop();
       }
       isRecording.value = false;
     }
 
     async function uploadVoice(blob, duration) {
+      /* 根据实际 MIME 选正确扩展名，保证服务端存储的扩展名与内容一致 */
+      var ext = _mimeExtMap[_actualMime] || '.webm';
       var fd = new FormData();
-      fd.append('voice', blob, 'voice.webm');
+      fd.append('voice', blob, 'voice' + ext);
       fd.append('channelId', store.currentChannelId);
       fd.append('duration', duration);
       try {

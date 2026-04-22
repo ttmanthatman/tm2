@@ -6,7 +6,7 @@
 - 前端: public/ 下的纯 HTML/CSS/JS，Vue 通过 CDN 引入，无 webpack/vite
 - 后端: server/ 下按职责拆分 (config/database/middleware/routes/socket)
 - 部署: VPS + PM2 + Nginx，通过 update.sh 从 GitHub 拉取更新
-- 当前版本: v0.4.1
+- 当前版本: v0.4.2
 - 分支策略: main (稳定可部署) + feat/* 或 fix/* (开发中)
 
 ## 关键约束
