@@ -30,24 +30,67 @@ const App = {
 
     /* ===== Animation & Effects ===== */
     const animOn = ref(localStorage.getItem('tc_anim') !== '0');
-    const bubbleDepth = ref(localStorage.getItem('tc_depth') || '2d');
     const showEmojiPicker = ref(false);
     const showPlusMenu = ref(false);
     const emojiTab = ref('face');
 
     function applyEffectClasses() {
       document.body.classList.toggle('anim-on', animOn.value);
-      document.body.classList.remove('bubble-2d', 'bubble-3d');
-      if (bubbleDepth.value === '3d') document.body.classList.add('bubble-3d');
-      else if (bubbleDepth.value === '2d') document.body.classList.add('bubble-2d');
     }
     function toggleAnim(v) { animOn.value = v; localStorage.setItem('tc_anim', v ? '1' : '0'); applyEffectClasses(); }
-    function setDepth(v) { bubbleDepth.value = v; localStorage.setItem('tc_depth', v); applyEffectClasses(); }
     function insertEmoji(code) { msgInput.value += code; showEmojiPicker.value = false; const ta = document.querySelector('.input-area textarea'); if (ta) ta.focus(); }
 
     /* Emoji picker 数据来自 EmojiRegistry */
     const emojiCategories = Vue.computed(function() { return EmojiRegistry.categories; });
     function emojiByCategory(key) { return EmojiRegistry.byCategory(key); }
+
+    /* ===== @-Mention Autocomplete ===== */
+    const mentionShow = ref(false);
+    const mentionList = ref([]);
+    const mentionIdx = ref(0);
+    let _mentionAtPos = -1; /* @符号在 textarea value 中的位置 */
+
+    function onMsgInput(e) {
+      autoGrow(e);
+      var ta = e.target;
+      var val = ta.value;
+      var cur = ta.selectionStart;
+      /* 从光标往前找最近的 @ */
+      var atPos = -1;
+      for (var i = cur - 1; i >= 0; i--) {
+        if (val[i] === '@') { if (i === 0 || /\s/.test(val[i - 1])) atPos = i; break; }
+        if (/\s/.test(val[i])) break;
+      }
+      if (atPos >= 0) {
+        var query = val.substring(atPos + 1, cur).toLowerCase();
+        var filtered = store.allUsers.filter(function(u) {
+          if (u.username === store.username) return false;
+          var nick = (u.nickname || '').toLowerCase();
+          var uname = u.username.toLowerCase();
+          return nick.indexOf(query) >= 0 || uname.indexOf(query) >= 0;
+        }).slice(0, 6);
+        if (filtered.length) {
+          mentionList.value = filtered;
+          mentionIdx.value = 0;
+          _mentionAtPos = atPos;
+          mentionShow.value = true;
+          return;
+        }
+      }
+      mentionShow.value = false;
+    }
+
+    function selectMention(user) {
+      var ta = document.querySelector('.input-area textarea');
+      if (!ta) return;
+      var name = user.nickname || user.username;
+      var before = msgInput.value.substring(0, _mentionAtPos);
+      var afterCur = msgInput.value.substring(ta.selectionStart);
+      msgInput.value = before + '@' + name + ' ' + afterCur;
+      mentionShow.value = false;
+      var newPos = before.length + 1 + name.length + 1;
+      nextTick(function() { ta.selectionStart = ta.selectionEnd = newPos; ta.focus(); });
+    }
 
     /* ===== Voice Recording ===== */
     const isRecording = ref(false);
@@ -150,6 +193,7 @@ const App = {
       }
       initSocket();
       await loadChannels();
+      loadAllUsers(); /* 不阻塞，后台加载全员列表供 @提及 */
       if (!store.currentChannelId && store.channels.length) store.currentChannelId = store.channels[0].id;
       if (store.currentChannelId) await switchChannel(store.currentChannelId);
     }
@@ -197,7 +241,15 @@ const App = {
       if (ta) { ta.style.height = 'auto'; }
     }
 
-    function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
+    function handleKey(e) {
+      if (mentionShow.value) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); mentionIdx.value = (mentionIdx.value + 1) % mentionList.value.length; return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); mentionIdx.value = (mentionIdx.value - 1 + mentionList.value.length) % mentionList.value.length; return; }
+        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); selectMention(mentionList.value[mentionIdx.value]); return; }
+        if (e.key === 'Escape') { e.preventDefault(); mentionShow.value = false; return; }
+      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+    }
 
     function insertNewline() {
       const ta = document.querySelector('.input-area textarea');
@@ -264,13 +316,14 @@ const App = {
       replyTo, noticeExpanded, msgInput, msgListKey,
       loginUser, loginPass, regUser, regNick, regPass, regPass2, chainTopic, chainDesc,
       currentChannel, currentMessages, onlineSet, ctxMenu,
-      doLogin, doRegister, logout, sendMsg, handleKey, insertNewline, autoGrow,
+      doLogin, doRegister, logout, sendMsg, handleKey, insertNewline, autoGrow, onMsgInput,
       uploadFile, sendChain, joinChain, parseChain, loadMore, showCtx, setReply,
       switchChannel: async (id) => { sidebarOpen.value = false; await switchChannel(id); },
       store, msgStore, API, esc, fmtTime, fmtSize, avatarUrl, sanitize,
       togglePush, checkPush,
-      animOn, bubbleDepth, showEmojiPicker, showPlusMenu, emojiTab,
-      toggleAnim, setDepth, insertEmoji, applyEffectClasses,
+      mentionShow, mentionList, mentionIdx, selectMention,
+      animOn, showEmojiPicker, showPlusMenu, emojiTab,
+      toggleAnim, insertEmoji, applyEffectClasses,
       emojiCategories, emojiByCategory,
       isRecording, recordSec, startRecording, stopRecording, cancelRecording, fmtDuration, VOICE_MAX_SEC
     };
@@ -338,7 +391,7 @@ const App = {
           <img class="msg-avatar" :src="avatarUrl(m.avatar)" :alt="m.nickname||m.username">
           <div class="msg-body">
             <div class="msg-sender">{{m.nickname||m.username}}</div>
-            <div class="msg-bubble">
+            <div class="msg-bubble" :class="{mentioned:isMentioned(m)}">
               <div v-if="m.reply_to" class="reply-ref">{{getReplyPreview(m.reply_to)}}</div>
               <div v-if="m.type==='text'&&m.content&&m.content.startsWith('[CHAIN]')" v-html="renderChain(m)"></div>
               <div v-else-if="m.type==='text'" class="msg-content" v-html="sanitize(m.content)"></div>
@@ -372,9 +425,16 @@ const App = {
         </button>
       </div>
       <template v-else>
+      <div v-if="mentionShow" class="mention-popup" @click.stop>
+        <div v-for="(u,i) in mentionList" :key="u.username" class="mention-item" :class="{active:i===mentionIdx}" @mousedown.prevent="selectMention(u)">
+          <img :src="avatarUrl(u.avatar)" alt="" class="mention-avatar">
+          <span class="mention-nick">{{u.nickname||u.username}}</span>
+          <span v-if="u.nickname&&u.nickname!==u.username" class="mention-uname">@{{u.username}}</span>
+        </div>
+      </div>
       <button class="voice-btn" title="语音消息" @click="startRecording()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
       <input ref="fileInput" type="file" hidden @change="uploadFile($event.target.files[0]);$event.target.value=''">
-      <textarea v-model="msgInput" placeholder="输入消息..." rows="1" enterkeyhint="send" @keydown="handleKey" @input="autoGrow"></textarea>
+      <textarea v-model="msgInput" placeholder="输入消息..." rows="1" enterkeyhint="send" @keydown="handleKey" @input="onMsgInput"></textarea>
       <div style="position:relative">
         <button class="emoji-btn" @click.stop="showEmojiPicker=!showEmojiPicker;showPlusMenu=false" title="表情">😊</button>
         <div v-if="showEmojiPicker" class="emoji-picker" @click.stop>
@@ -409,7 +469,7 @@ const App = {
 </div>
 <div v-if="ctxMenu" class="msg-menu" :style="{left:ctxMenu.x+'px',top:ctxMenu.y+'px'}"><div class="menu-item" @click="setReply(ctxMenu.msg)">💬 引用回复</div><div v-if="store.isAdmin" class="menu-item menu-item-danger" @click="doDeleteSingleMsg(ctxMenu.msg)">🗑️ 删除此消息</div></div>
 <div v-if="currentModal==='imagePreview'" class="image-modal" @click="currentModal=''"><img :src="modalData.src" alt="预览"></div>
-<div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div class="section"><h4>✨ 动画效果</h4><div class="anim-toggles"><div class="anim-toggle-row"><span>消息动画 (果冻滑入 & 水波)</span><label class="toggle-switch"><input type="checkbox" :checked="animOn" @change="toggleAnim($event.target.checked)"><span class="slider"></span></label></div><div class="anim-toggle-row"><span>气泡立体感</span><div class="depth-select"><button :class="{active:bubbleDepth==='2d'}" @click="setDepth('2d')">2D</button><button :class="{active:bubbleDepth==='3d'}" @click="setDepth('3d')">3D</button><button :class="{active:bubbleDepth==='flat'}" @click="setDepth('flat')">平面</button></div></div></div></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="openAppearance()">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="openFileMgmt()">📎 附件管理</button><button class="success" @click="openBgLibrary()">🖼️ 墙纸/视频库</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
+<div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div class="section"><h4>✨ 动画效果</h4><div class="anim-toggles"><div class="anim-toggle-row"><span>消息动画 (果冻滑入 & 水波)</span><label class="toggle-switch"><input type="checkbox" :checked="animOn" @change="toggleAnim($event.target.checked)"><span class="slider"></span></label></div></div></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="openAppearance()">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="openFileMgmt()">📎 附件管理</button><button class="success" @click="openBgLibrary()">🖼️ 墙纸/视频库</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
 <div v-if="currentModal==='channelMgmt'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>📺 频道管理</h3><div class="section"><h4>新建频道</h4><input id="newChName" type="text" placeholder="频道名称"><input id="newChDesc" type="text" placeholder="频道描述 (选填)"><label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px"><input type="checkbox" id="newChPrivate"> 私有频道</label><button @click="doCreateChannel()">创建频道</button><p id="chCreateMsg" style="font-size:13px"></p></div><div class="section"><h4>已有频道</h4><div v-for="ch in modalData.allChannels||[]" :key="ch.id" class="ch-mgmt-item"><div class="ch-info"><div class="ch-name">{{ch.is_private?'🔒':''}} {{ch.name}}</div><div class="ch-meta">{{ch.description||'无描述'}} · {{ch._memberCount||0}}人</div></div><button style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#667eea" @click="openChannelPerm(ch)">权限</button><button v-if="!ch.is_default" style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#dc2626" @click="doDeleteChannel(ch)">删除</button></div></div><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
 <div v-if="currentModal==='channelPerm'" class="modal-overlay" @click.self="currentModal='channelMgmt'"><div class="modal"><h3>🔐 频道权限: {{modalData.permChannel?.name}}</h3><div class="section"><h4>添加成员</h4><select id="addMemberSel" style="width:70%;display:inline-block"><option v-for="u in modalData.nonMembers||[]" :key="u.username" :value="u.username">{{u.nickname||u.username}}</option></select><button style="width:28%;display:inline-block;margin-left:2%" @click="doAddMember()">添加</button></div><div class="section"><h4>当前成员</h4><div class="ch-perm-grid"><div v-for="m in modalData.permMembers||[]" :key="m.user_id" class="ch-perm-row"><span class="perm-user">{{m.nickname||m.username}}</span><select :value="m.role" @change="doChangeRole(m,$event.target.value)"><option value="owner">所有者</option><option value="admin">管理员</option><option value="member">成员</option><option value="viewer">只读</option></select><button style="width:auto;padding:4px 8px;font-size:11px;margin:0;background:#dc2626" @click="doRemoveMember(m)">移除</button></div></div></div><button class="close-btn" @click="currentModal='channelMgmt'">返回</button></div></div>
 <div v-if="currentModal==='notice'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>📌 置顶通知</h3><textarea id="noticeInput" rows="4" :value="store.notice.content||''" placeholder="输入通知内容..."></textarea><button @click="doSaveNotice()">发布</button><button class="danger" @click="doClearNotice()">撤下</button><p id="noticeMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
@@ -851,6 +911,16 @@ const App = {
       if (m.type === 'file') return name + ': [文件]';
       if (m.type === 'voice') return name + ': [语音消息]';
       return name + ': ' + (m.content || '').replace(/<[^>]*>/g, '').substring(0, 40);
+    },
+
+    isMentioned(msg) {
+      if (!msg.content || msg.type !== 'text') return false;
+      if (msg.username === store.username) return false;
+      if (msg.content.startsWith('[CHAIN]')) return false;
+      var c = msg.content.toLowerCase();
+      var nick = (store.nickname || '').toLowerCase();
+      var uname = store.username.toLowerCase();
+      return (nick && c.indexOf('@' + nick) >= 0) || c.indexOf('@' + uname) >= 0;
     },
 
     renderChain(msg) {

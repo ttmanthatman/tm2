@@ -4,23 +4,11 @@
 
 ## [Unreleased]
 
-### Added
-- 新增 `css/app-polish.css` — App 质感增强层，修复 20+ 项「网页感」问题
-  - 弹窗入场动画 (从底部弹入 + 缩放)
-  - 弹窗/被踢浮层毛玻璃背景 (`backdrop-filter: blur`)
-  - 所有按钮触控缩放反馈 (`transform: scale`)
-  - 自定义细滚动条 (5px，暗色区域自适应)
-  - iOS safe-area 适配 (输入框/侧边栏/登录卡片)
-  - 禁止 UI 区域文字选中、长按系统菜单、点击蓝色高亮
-  - 图片预览缩放入场、右键菜单弹出动画、emoji 选择器滑入动画
-  - 侧边栏遮罩淡入淡出过渡
-  - 通知栏/回复条展开动画
-  - 骨架屏闪光动画 (`@keyframes shimmer`)
 
-### Changed
-- `layout.css` — sidebar-overlay 从 `display:none/block` 改为 `opacity + pointer-events`，使过渡动画生效
-- `responsive.css` — 配合 sidebar-overlay 过渡方案调整
-- `index.html` — 引入 `app-polish.css`
+## [v0.4.1]
+- ✨ 新增 @提及自动补全：输入 @ 弹出成员列表，支持模糊搜索、键盘↑↓选择
+- ✨ 被 @ 的消息气泡显示彩虹跑马灯边框
+- 🗑️ 移除气泡立体感功能（2D/3D/平面切换），精简代码
 
 ## [v0.4.0]
 - 语音消息 — 录音/播放/管理员删除/批量导入导出

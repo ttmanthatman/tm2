@@ -15,6 +15,7 @@ const store = Vue.reactive({
   channels: [],
   currentChannelId: parseInt(localStorage.getItem('currentChannelId')) || 0,
   onlineUsers: [],
+  allUsers: [],
   notice: { content: '', enabled: false },
 });
 

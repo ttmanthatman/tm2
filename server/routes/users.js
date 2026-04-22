@@ -9,6 +9,11 @@ const { authMiddleware, adminMiddleware } = require("../middleware");
 
 const router = express.Router();
 
+/* ===== 全员基础信息 (供 @提及) ===== */
+router.get("/users/basic", authMiddleware, (req, res) => {
+  res.json(db.prepare("SELECT username,nickname,avatar FROM users").all());
+});
+
 /* ===== 用户列表 ===== */
 router.get("/users", authMiddleware, adminMiddleware, (req, res) => {
   res.json(db.prepare("SELECT id,username,nickname,avatar,is_admin,created_at FROM users").all());

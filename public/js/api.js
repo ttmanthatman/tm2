@@ -10,6 +10,14 @@
  *   3) 图片背景也改为设在 .messages-wrapper 上(不滚动), 而非 .messages(会跟内容滚).
  */
 
+/* ===== 全员列表 (供 @提及) ===== */
+async function loadAllUsers() {
+  try {
+    const r = await fetch(API + '/api/users/basic', { headers: authH() });
+    if (r.ok) store.allUsers = await r.json();
+  } catch(e) {}
+}
+
 /* ===== 频道 ===== */
 async function loadChannels() {
   try {

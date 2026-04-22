@@ -1,4 +1,4 @@
-# TeamChat v0.3.1 — 多频道团队聊天室
+# TeamChat v0.4.1 — 多频道团队聊天室
 
 基于 Vue 3 (CDN) + Express + Socket.IO + SQLite 的轻量团队聊天应用。
 无需构建工具，前端纯 HTML/CSS/JS，部署只需一台 VPS。
@@ -30,7 +30,7 @@ tm2/
 │       ├── channels.js         # 频道 CRUD / 成员管理
 │       ├── messages.js         # 消息获取 / 文件上传
 │       ├── settings.js         # 外观 / 通知 / 时区
-│       ├── users.js            # 用户增删查 (管理员)
+│       ├── users.js            # 用户增删查 + @提及基础列表
 │       ├── push.js             # 推送订阅 / 取消
 │       ├── backup.js           # 备份导出 / 还原
 │       └── admin-files.js      # 附件 & 墙纸库管理
@@ -45,7 +45,7 @@ tm2/
     │   ├── base.css            # 重置 + 全局变量
     │   ├── login.css           # 登录页
     │   ├── layout.css          # 三栏布局 + 侧边栏 + 成员面板
-    │   ├── chat.css            # 消息气泡 + 输入框 + 接龙 + 动画
+    │   ├── chat.css            # 消息气泡 + 输入框 + 接龙 + @提及 + 动画
     │   ├── modals.css          # 弹窗系统
     │   ├── files-admin.css     # 管理员附件/墙纸库
     │   ├── responsive.css      # 响应式断点
@@ -86,7 +86,7 @@ bash install-from-git.sh
 bash update.sh
 
 # 指定 tag 部署
-bash update.sh v0.3.1
+bash update.sh v0.4.0
 ```
 
 ## 模块依赖关系
