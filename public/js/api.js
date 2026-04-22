@@ -268,55 +268,54 @@ function _hexToHSL(hex) {
 }
 function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
 
-function _calc3D(c1, c2, t, bv) {
-  /* t = 整体强度 0~1,  bv = 倒角宽度 0~1 */
+function _calc3D(c1, c2, t, bv, bdr) {
+  /* t=整体强度 0~1, bv=倒角 0~1, bdr={on,width,c1,c2} 描边 */
   var h1 = _hexToHSL(c1), h2 = _hexToHSL(c2);
 
-  /* ---- 自适应高光 ----
-   * 不用固定 +35, 而是按"离白还有多少空间"的比例提亮。
-   * 浅色 (L=85) → 只提亮 7;  深色 (L=30) → 提亮 40 */
-  var hiRoom = 97 - h1.l;                       /* 还可以提亮多少 */
+  /* 自适应高光 */
+  var hiRoom = 97 - h1.l;
   var hiL = h1.l + hiRoom * 0.6 * t;
-  var hiS = h1.s * (1 - 0.25 * t);              /* 降饱和但保留底色 */
+  var hiS = h1.s * (1 - 0.25 * t);
   var highlight = _hsl(h1.h, hiS, hiL);
 
-  /* ---- 自适应暗部 ----
-   * 按"离黑还有多少空间"的比例压暗 + 色相偏暖 + 加饱和 */
+  /* 自适应暗部 */
   var shRoom = h2.l - 5;
   var shL = h2.l - shRoom * 0.55 * t;
   var shS = Math.min(h2.s * (1 + 0.2 * t), 100);
   var shadow = _hsl(h2.h + 8, shS, shL);
 
-  /* ---- 主渐变: 保留原色区域更大 ---- */
+  /* 主渐变 + 镜面 */
   var mainGrad = 'linear-gradient(155deg,'+highlight+' 0%,'+c1+' 30%,'+c2+' 72%,'+shadow+' 100%)';
-
-  /* ---- 镜面高光 ---- */
   var specAlpha = 0.35 * t;
   var specular = 'radial-gradient(ellipse 70% 45% at 28% 18%,rgba(255,255,255,'+specAlpha+') 0%,rgba(255,255,255,'+(specAlpha*0.2)+') 55%,transparent 75%)';
 
-  var bg = specular + ',' + mainGrad;
+  /* ---- 渐变描边 (background-clip 技巧) ----
+   * 开启时: 每个内容层加 padding-box, 最底层放描边渐变 border-box
+   * border 设为 transparent 让描边渐变从 border 区域露出 */
+  var bg, border;
+  if (bdr && bdr.on) {
+    var bdrGrad = 'linear-gradient(155deg,'+bdr.c1+','+bdr.c2+')';
+    bg = specular + ' padding-box,' + mainGrad + ' padding-box,' + bdrGrad + ' border-box';
+    border = bdr.width + 'px solid transparent';
+  } else {
+    bg = specular + ',' + mainGrad;
+    border = 'none';
+  }
 
-  /* ---- 倒角 (bevel) ----
-   * bv 控制 inset shadow 的 offset 和 blur:
-   *   bv=0 → offset 1px, blur 3px (柔和)
-   *   bv=1 → offset 6px, blur 6px (硬边, 明显棱角)
-   * 关键: blur ≈ offset, 形成清晰的"棱"而不是模糊发光 */
-  var bOff   = 1 + bv * 5;         /* 1~6 px */
-  var bBlur  = 2 + bv * 5;         /* 2~7 px (接近 offset, 边缘锐利) */
-  var bHiA   = (0.35 + bv * 0.35) * t;   /* 高光透明度 0.35~0.7 */
-  var bShA   = (0.12 + bv * 0.18) * t;   /* 阴影透明度 0.12~0.3 */
+  /* 倒角 inset shadow */
+  var bOff  = 1 + bv * 5;
+  var bBlur = 2 + bv * 5;
+  var bHiA  = (0.35 + bv * 0.35) * t;
+  var bShA  = (0.12 + bv * 0.18) * t;
 
-  var sh = 'inset 0 '+bOff+'px '+bBlur+'px rgba(255,255,255,'+bHiA+')'      /* 顶部倒角亮边 */
-    + ',inset 0 -'+bOff+'px '+bBlur+'px rgba(0,0,0,'+bShA+')'               /* 底部倒角暗边 */
-    + ',inset '+bOff+'px 0 '+bBlur+'px rgba(255,255,255,'+(bHiA*0.4)+')'    /* 左侧光 */
-    + ',inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+')'   /* 右侧暗 */
-    + ',0 '+(3*t)+'px '+(10*t)+'px rgba(0,0,0,'+(0.14*t)+')'                /* 外投影 */
-    + ',0 '+(1*t)+'px '+(3*t)+'px rgba(0,0,0,'+(0.08*t)+')';                /* 贴近投影 */
+  var sh = 'inset 0 '+bOff+'px '+bBlur+'px rgba(255,255,255,'+bHiA+')'
+    + ',inset 0 -'+bOff+'px '+bBlur+'px rgba(0,0,0,'+bShA+')'
+    + ',inset '+bOff+'px 0 '+bBlur+'px rgba(255,255,255,'+(bHiA*0.4)+')'
+    + ',inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+')'
+    + ',0 '+(3*t)+'px '+(10*t)+'px rgba(0,0,0,'+(0.14*t)+')'
+    + ',0 '+(1*t)+'px '+(3*t)+'px rgba(0,0,0,'+(0.08*t)+')';
 
-  var avgL = (h1.l + h2.l) / 2;
-  var bA = (avgL > 70 ? 0.14 : 0.08) * t;
-
-  return { bg: bg, shadow: sh, border: 'rgba(0,0,0,'+bA+')' };
+  return { bg: bg, shadow: sh, border: border };
 }
 
 function _applyBubbleStyle(d) {
@@ -331,6 +330,14 @@ function _applyBubbleStyle(d) {
   var inten = (parseInt(d.bubble_3d_intensity) || 60) / 100;
   var bevel = (parseInt(d.bubble_3d_bevel) || 50) / 100;
 
+  /* 描边参数 */
+  var bdr = {
+    on:    d.bubble_border_on === '1' || d.bubble_border_on === true,
+    width: parseInt(d.bubble_border_width) || 2,
+    c1:    d.bubble_border_color1 || '#ffffff',
+    c2:    d.bubble_border_color2 || '#000000'
+  };
+
   var root = document.documentElement.style;
   root.setProperty('--b-my-c1', myC1);
   root.setProperty('--b-my-c2', myC2);
@@ -341,8 +348,8 @@ function _applyBubbleStyle(d) {
   root.setProperty('--b-angle', angle);
 
   /* 3D 预计算 */
-  var my3 = _calc3D(myC1, myC2, inten, bevel);
-  var ot3 = _calc3D(otC1, otC2, inten, bevel);
+  var my3 = _calc3D(myC1, myC2, inten, bevel, bdr);
+  var ot3 = _calc3D(otC1, otC2, inten, bevel, bdr);
   root.setProperty('--b-my-3d-bg', my3.bg);
   root.setProperty('--b-my-3d-shadow', my3.shadow);
   root.setProperty('--b-my-3d-border', my3.border);

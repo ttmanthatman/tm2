@@ -17,7 +17,8 @@ const APPEARANCE_KEYS = [
   /* 气泡样式 */
   "bubble_style","bubble_my_color1","bubble_my_color2","bubble_my_text",
   "bubble_other_color1","bubble_other_color2","bubble_other_text",
-  "bubble_gradient_angle","bubble_3d_intensity","bubble_3d_bevel"
+  "bubble_gradient_angle","bubble_3d_intensity","bubble_3d_bevel",
+  "bubble_border_on","bubble_border_width","bubble_border_color1","bubble_border_color2"
 ];
 
 /* ===== 通知 ===== */

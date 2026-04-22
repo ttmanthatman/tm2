@@ -791,6 +791,28 @@ const App = {
         <p class="hint">倒角控制气泡边缘亮暗棱的宽度。0=柔和发光, 100=硬朗棱角。</p>
       </div>
 
+      <!-- 描边设置 (所有模式可用) -->
+      <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500;color:#333">
+          <input type="checkbox" v-model="modalData.appDraft.bubble_border_on"> 启用渐变描边
+        </label>
+        <div v-if="modalData.appDraft.bubble_border_on" style="margin-top:10px">
+          <label class="field-label">描边宽度: {{modalData.appDraft.bubble_border_width}}px</label>
+          <input type="range" min="1" max="6" step="1" v-model.number="modalData.appDraft.bubble_border_width" style="width:100%">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+            <div>
+              <label class="field-label">描边起始色</label>
+              <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_border_color1"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_border_color1}}</span></div>
+            </div>
+            <div>
+              <label class="field-label">描边结束色</label>
+              <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_border_color2"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_border_color2}}</span></div>
+            </div>
+          </div>
+          <p class="hint">描边使用渐变色，从左上到右下过渡，圆角处不会断裂。</p>
+        </div>
+      </div>
+
       <!-- 气泡迷你预览 -->
       <div style="margin-top:12px;background:#f0f2f5;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
         <div style="font-size:11px;color:#888;margin-bottom:2px;font-weight:600">预览</div>
@@ -1041,7 +1063,11 @@ const App = {
       } else if (st === '3d') {
         var t = (a.bubble_3d_intensity || 60) / 100;
         var bv = (a.bubble_3d_bevel || 50) / 100;
-        /* 与 api.js _calc3D 完全同逻辑 */
+        var bdrOn = !!a.bubble_border_on;
+        var bdrW = parseInt(a.bubble_border_width) || 2;
+        var bdrC1 = a.bubble_border_color1 || '#ffffff';
+        var bdrC2 = a.bubble_border_color2 || '#000000';
+        /* HSL 工具 */
         var _h = function(hex) {
           if (!hex||hex.charAt(0)!=='#') return {h:0,s:0,l:50};
           var rv=parseInt(hex.slice(1,3),16)/255, gv=parseInt(hex.slice(3,5),16)/255, bvv=parseInt(hex.slice(5,7),16)/255;
@@ -1051,19 +1077,20 @@ const App = {
         };
         var _hs = function(h,s,l){return'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'};
         var h1=_h(c1),h2x=_h(c2);
-        /* 自适应高光: 按剩余空间比例提亮 */
-        var hiRoom=97-h1.l;
-        var hi=_hs(h1.h, h1.s*(1-0.25*t), h1.l+hiRoom*0.6*t);
-        /* 自适应暗部 */
-        var shRoom=h2x.l-5;
-        var sh=_hs(h2x.h+8, Math.min(h2x.s*(1+0.2*t),100), h2x.l-shRoom*0.55*t);
-        /* 镜面 + 主渐变 */
+        var hi=_hs(h1.h, h1.s*(1-0.25*t), h1.l+(97-h1.l)*0.6*t);
+        var sh=_hs(h2x.h+8, Math.min(h2x.s*(1+0.2*t),100), h2x.l-(h2x.l-5)*0.55*t);
         var specA = 0.35*t;
-        r.background = 'radial-gradient(ellipse 70% 45% at 28% 18%,rgba(255,255,255,'+specA+') 0%,rgba(255,255,255,'+(specA*0.2)+') 55%,transparent 75%),'
-          + 'linear-gradient(155deg,'+hi+' 0%,'+c1+' 30%,'+c2+' 72%,'+sh+' 100%)';
-        var avgL=(h1.l+h2x.l)/2, bA=(avgL>70?.14:.08)*t;
-        r.border = '1px solid rgba(0,0,0,'+bA+')';
-        /* 倒角 inset shadow */
+        var specLayer = 'radial-gradient(ellipse 70% 45% at 28% 18%,rgba(255,255,255,'+specA+') 0%,rgba(255,255,255,'+(specA*0.2)+') 55%,transparent 75%)';
+        var mainLayer = 'linear-gradient(155deg,'+hi+' 0%,'+c1+' 30%,'+c2+' 72%,'+sh+' 100%)';
+        /* 渐变描边: padding-box/border-box 技巧 */
+        if (bdrOn) {
+          r.background = specLayer+' padding-box,'+mainLayer+' padding-box,linear-gradient(155deg,'+bdrC1+','+bdrC2+') border-box';
+          r.border = bdrW+'px solid transparent';
+        } else {
+          r.background = specLayer+','+mainLayer;
+          r.border = 'none';
+        }
+        /* 倒角 */
         var bOff=1+bv*5, bBlur=2+bv*5;
         var bHiA=(0.35+bv*0.35)*t, bShA=(0.12+bv*0.18)*t;
         r.boxShadow = 'inset 0 '+bOff+'px '+bBlur+'px rgba(255,255,255,'+bHiA+'),'
