@@ -14,14 +14,10 @@ const APPEARANCE_KEYS = [
   "bg_type","bg_color","bg_image","bg_mode","bg_video","bg_video_url","bg_video_mode",
   "login_bg_type","login_bg_color1","login_bg_color2","login_bg_image",
   "login_bg_mode","login_bg_video","login_bg_video_url","login_bg_video_mode",
-  /* 气泡样式 */
-  "bubble_style","bubble_my_color1","bubble_my_color2","bubble_my_text",
-  "bubble_other_color1","bubble_other_color2","bubble_other_text",
-  "bubble_gradient_angle","bubble_3d_intensity","bubble_3d_bevel",
-  "bubble_border_on","bubble_border_width","bubble_border_color1","bubble_border_color2",
-  "bubble_shadow_offset","bubble_shadow_blur","bubble_shadow_spread","bubble_shadow_opacity","bubble_shadow_color","bubble_shadow_angle",
-  "bubble_dynamic_on",
-  "bg_3d_theme"
+  "bubble_style","bubble_my_color1","bubble_my_color2",
+  "bubble_other_color1","bubble_other_color2",
+  "bubble_my_text","bubble_other_text",
+  "bubble_gradient_angle","bubble_3d_intensity"
 ];
 
 /* ===== 通知 ===== */

@@ -28,15 +28,11 @@
 <!-- ===== 依赖库 ===== -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-<!-- ===== 模块化 JS (顺序: 工具 → 状态 → 引擎 → API → Socket → 管理 → 主入口) ===== -->
+<!-- ===== 模块化 JS (注意顺序：Emoji → 工具 → 状态 → API → Socket → 推送 → 管理 → 主入口) ===== -->
 <script src="/js/emoji.js"></script>
 <script src="/js/utils.js"></script>
 <script src="/js/store.js"></script>
-<script src="/js/gyro.js"></script>
-<script src="/js/scene.js"></script>
-<script src="/js/bubble-engine.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/socket-client.js"></script>
 <script src="/js/push-client.js"></script>

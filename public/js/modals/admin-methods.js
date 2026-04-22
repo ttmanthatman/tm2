@@ -122,29 +122,15 @@ const AdminMethods = {
       parallax_enabled:  a.parallax_enabled === '1',
       parallax_strength: parseInt(a.parallax_strength) || 30,
 
-      /* 气泡样式 */
       bubble_style:          a.bubble_style          || 'flat',
       bubble_my_color1:      a.bubble_my_color1      || '#667eea',
-      bubble_my_color2:      a.bubble_my_color2      || '#667eea',
-      bubble_my_text:        a.bubble_my_text         || '#ffffff',
+      bubble_my_color2:      a.bubble_my_color2      || '#764ba2',
       bubble_other_color1:   a.bubble_other_color1   || '#ffffff',
-      bubble_other_color2:   a.bubble_other_color2   || '#ffffff',
+      bubble_other_color2:   a.bubble_other_color2   || '#e8eeff',
+      bubble_my_text:        a.bubble_my_text         || '#ffffff',
       bubble_other_text:     a.bubble_other_text      || '#333333',
       bubble_gradient_angle: parseInt(a.bubble_gradient_angle) || 135,
-      bubble_3d_intensity:   parseInt(a.bubble_3d_intensity)   || 60,
-      bubble_3d_bevel:       parseInt(a.bubble_3d_bevel)       || 50,
-      bubble_border_on:      a.bubble_border_on === '1',
-      bubble_border_width:   parseInt(a.bubble_border_width)   || 2,
-      bubble_border_color1:  a.bubble_border_color1  || '#ffffff',
-      bubble_border_color2:  a.bubble_border_color2  || '#000000',
-      bubble_shadow_offset:  parseInt(a.bubble_shadow_offset)  || 4,
-      bubble_shadow_blur:    parseInt(a.bubble_shadow_blur)    || 12,
-      bubble_shadow_spread:  parseInt(a.bubble_shadow_spread)  || 0,
-      bubble_shadow_opacity: parseInt(a.bubble_shadow_opacity) || 15,
-      bubble_shadow_color:   a.bubble_shadow_color   || '#000000',
-      bubble_shadow_angle:   parseInt(a.bubble_shadow_angle)   || 180,
-      bubble_dynamic_on:     a.bubble_dynamic_on === '1',
-      bg_3d_theme:           a.bg_3d_theme || 'none'
+      bubble_3d_intensity:   parseInt(a.bubble_3d_intensity)   || 60
     };
     this.modalData.gyroState = this._gyroInitState();
     this.currentModal = 'appearance';
@@ -265,29 +251,15 @@ const AdminMethods = {
       parallax_enabled:  a.parallax_enabled ? '1' : '0',
       parallax_strength: String(a.parallax_strength || 30),
 
-      /* 气泡样式 */
       bubble_style:          a.bubble_style || 'flat',
-      bubble_my_color1:      a.bubble_my_color1 || '#667eea',
-      bubble_my_color2:      a.bubble_my_color2 || '#667eea',
-      bubble_my_text:        a.bubble_my_text || '#ffffff',
-      bubble_other_color1:   a.bubble_other_color1 || '#ffffff',
-      bubble_other_color2:   a.bubble_other_color2 || '#ffffff',
-      bubble_other_text:     a.bubble_other_text || '#333333',
+      bubble_my_color1:      a.bubble_my_color1,
+      bubble_my_color2:      a.bubble_my_color2,
+      bubble_other_color1:   a.bubble_other_color1,
+      bubble_other_color2:   a.bubble_other_color2,
+      bubble_my_text:        a.bubble_my_text,
+      bubble_other_text:     a.bubble_other_text,
       bubble_gradient_angle: String(a.bubble_gradient_angle || 135),
-      bubble_3d_intensity:   String(a.bubble_3d_intensity || 60),
-      bubble_3d_bevel:       String(a.bubble_3d_bevel || 50),
-      bubble_border_on:      a.bubble_border_on ? '1' : '0',
-      bubble_border_width:   String(a.bubble_border_width || 2),
-      bubble_border_color1:  a.bubble_border_color1 || '#ffffff',
-      bubble_border_color2:  a.bubble_border_color2 || '#000000',
-      bubble_shadow_offset:  String(a.bubble_shadow_offset ?? 4),
-      bubble_shadow_blur:    String(a.bubble_shadow_blur ?? 12),
-      bubble_shadow_spread:  String(a.bubble_shadow_spread ?? 0),
-      bubble_shadow_opacity: String(a.bubble_shadow_opacity ?? 15),
-      bubble_shadow_color:   a.bubble_shadow_color || '#000000',
-      bubble_shadow_angle:   String(a.bubble_shadow_angle ?? 180),
-      bubble_dynamic_on:     a.bubble_dynamic_on ? '1' : '0',
-      bg_3d_theme:           a.bg_3d_theme || 'none'
+      bubble_3d_intensity:   String(a.bubble_3d_intensity || 60)
     };
     try {
       const r = await fetch(API + '/api/settings/appearance', {
@@ -300,64 +272,68 @@ const AdminMethods = {
     } catch (e) { this.modalData.appearMsg = '失败'; }
   },
 
-  /* ====== 视差 / 陀螺仪姿态检测 ====== */
+  /* ====== 视差 / 陀螺仪姿态采集 ====== */
   _gyroInitState() {
-    const supported = !!(window.Gyro && Gyro.isSupported());
-    const needsPerm = !!(window.Gyro && Gyro.needsPermission());
+    const supported = !!(window.Parallax && Parallax.isSupported());
+    const needsPerm = !!(window.Parallax && Parallax.isIOSPermissionRequired());
     return {
       supported,
       needsPerm,
       permGranted: !needsPerm,        /* 非 iOS 默认已授权 */
       capturing: false,
-      live: null,                     /* 实时姿态 {beta, gamma} */
-      baselineLocal: null,
+      live: null,                     /* 实时姿态 {beta, gamma, alpha} */
+      baselineLocal: null,            /* 本次刚采到的基线 */
       msg: supported
-        ? (needsPerm ? '此设备需要授权 (iOS 13+), 请点击 "授权陀螺仪"' : '✅ 陀螺仪可用')
-        : '⚠️ 当前设备/浏览器不支持陀螺仪'
+        ? (needsPerm ? '此设备需要授权 (iOS 13+), 请点击 "授权陀螺仪"' : '可以开始校准')
+        : '⚠️ 当前设备/浏览器不支持 DeviceOrientation API'
     };
   },
 
   async doRequestGyroPerm() {
-    if (!window.Gyro) return;
-    const ok = await Gyro.requestPermission();
+    if (!window.Parallax) return;
+    const ok = await Parallax.requestPermission();
     const g = this.modalData.gyroState;
     g.permGranted = !!ok;
-    g.msg = ok ? '✅ 已授权' : '❌ 授权被拒绝, 可以稍后重试';
+    g.msg = ok ? '✅ 已授权, 可以开始校准' : '❌ 授权被拒绝, 可以稍后重试';
   },
 
-  /* 简化: 不再需要手动校准, Gyro 模块自动采集基线 */
   async doStartGyroCapture() {
-    if (!window.Gyro) return;
+    if (!window.Parallax) return;
     const g = this.modalData.gyroState;
     if (!g.supported) return;
     if (!g.permGranted) { await this.doRequestGyroPerm(); if (!g.permGranted) return; }
-    g.capturing = true; g.msg = '📡 测试中, 倾斜手机看实时数据…';
-    /* 临时监听, 回写到 UI */
-    var self = this;
-    self._gyroTestCb = function(alpha, beta, gamma) {
-      g.live = { alpha: alpha, beta: beta, gamma: gamma };
-    };
-    Gyro.on(self._gyroTestCb);
-    await Gyro.start();
-    g.msg = '倾斜手机查看实时数据; 开启动态气泡后效果自动生效';
-  },
-
-  doStopGyroCapture() {
-    const g = this.modalData.gyroState;
-    if (this._gyroTestCb) {
-      Gyro.off(this._gyroTestCb);
-      this._gyroTestCb = null;
+    g.capturing = true; g.msg = '📡 采集中, 请保持设备水平 2 秒…';
+    /* 一边校准一边把实时数据回写 UI */
+    const stopLive = Parallax.startCapture(s => {
+      g.live = { beta: s.beta, gamma: s.gamma, alpha: s.alpha };
+    }, {});
+    try {
+      const baseline = await Parallax.calibrate(2000);
+      g.baselineLocal = baseline;
+      /* 写入草稿; 真正落库要等用户点保存 */
+      this.modalData.appDraft.parallax_baseline_pending = JSON.stringify(baseline);
+      g.msg = '✅ 校准完成 (β=' + baseline.beta.toFixed(2)
+            + '°, γ=' + baseline.gamma.toFixed(2) + '°), 记得点保存';
+    } catch (e) {
+      g.msg = '❌ 采集失败: ' + (e.message || e);
     }
     g.capturing = false;
-    g.live = null;
-    g.msg = '已停止测试';
+    stopLive();
   },
 
+  /* 把刚采到的基线一起送到后端 (单独按钮, 也可以随保存一起) */
   async doSaveGyroBaseline() {
-    if (!window.Gyro) return;
-    Gyro.stop();
-    await Gyro.start();
-    this.modalData.gyroState.msg = '✅ 已重置, 当前朝向为新零点';
+    const pending = this.modalData.appDraft && this.modalData.appDraft.parallax_baseline_pending;
+    if (!pending) { this.modalData.gyroState.msg = '请先校准一次'; return; }
+    try {
+      const r = await fetch(API + '/api/settings/appearance', {
+        method: 'POST',
+        headers: authH({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ parallax_baseline: pending })
+      });
+      const d = await r.json();
+      this.modalData.gyroState.msg = d.success ? '✅ 基线已保存' : '保存失败';
+    } catch (e) { this.modalData.gyroState.msg = '保存失败'; }
   },
 
   async doSaveAppearanceLegacy_REMOVED() { /* 占位, 防止旧调用报错 */ },

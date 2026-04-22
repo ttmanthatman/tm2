@@ -151,6 +151,72 @@ function _removeBgVideo(host) {
   if (old) old.remove();
 }
 
+/* ===== Bubble Style helpers ===== */
+function _hexToHSL(hex) {
+  if (!hex || hex.length < 7) return { h: 0, s: 0, l: 50 };
+  var r = parseInt(hex.slice(1,3),16)/255;
+  var g = parseInt(hex.slice(3,5),16)/255;
+  var b = parseInt(hex.slice(5,7),16)/255;
+  var max = Math.max(r,g,b), min = Math.min(r,g,b);
+  var h = 0, s = 0, l = (max+min)/2;
+  if (max !== min) {
+    var d = max - min;
+    s = l > .5 ? d/(2-max-min) : d/(max+min);
+    if (max === r) h = ((g-b)/d + (g<b?6:0)) / 6;
+    else if (max === g) h = ((b-r)/d + 2) / 6;
+    else h = ((r-g)/d + 4) / 6;
+  }
+  return { h: h*360, s: s*100, l: l*100 };
+}
+function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
+
+function _applyBubbleStyle(d) {
+  var root = document.documentElement.style;
+  var body = document.body;
+  var mode = d.bubble_style || 'flat';
+
+  /* 清除所有 bubble mode class */
+  body.classList.remove('bubble-2d-single','bubble-2d-flow','bubble-3d');
+  if (mode !== 'flat') body.classList.add('bubble-' + mode);
+
+  var myC1   = d.bubble_my_color1    || '#667eea';
+  var myC2   = d.bubble_my_color2    || '#764ba2';
+  var otC1   = d.bubble_other_color1 || '#ffffff';
+  var otC2   = d.bubble_other_color2 || '#e8eeff';
+  var myTxt  = d.bubble_my_text      || '#ffffff';
+  var otTxt  = d.bubble_other_text   || '#333333';
+  var angle  = (parseInt(d.bubble_gradient_angle) || 135) + 'deg';
+  var t      = (parseFloat(d.bubble_3d_intensity) || 60) / 100;
+
+  root.setProperty('--bubble-my-c1',    myC1);
+  root.setProperty('--bubble-my-c2',    myC2);
+  root.setProperty('--bubble-other-c1', otC1);
+  root.setProperty('--bubble-other-c2', otC2);
+  root.setProperty('--bubble-my-color', myTxt);
+  root.setProperty('--bubble-other-color', otTxt);
+  root.setProperty('--bubble-angle',    angle);
+  root.setProperty('--bubble-3d-t',     String(t));
+
+  /* flat / 2d 模式: 直接用 c1 作为 bg 和 arrow */
+  if (mode === 'flat') {
+    root.setProperty('--bubble-my-bg',    myC1);
+    root.setProperty('--bubble-other-bg', otC1);
+  }
+  /* arrow 始终用 c1 (渐变起始色侧，视觉最接近) */
+  root.setProperty('--bubble-my-arrow',    myC1);
+  root.setProperty('--bubble-other-arrow', otC1);
+
+  /* 3D 模式: 计算高光/阴影 HSL 色 */
+  if (mode === '3d') {
+    var m1 = _hexToHSL(myC1), m2 = _hexToHSL(myC2);
+    root.setProperty('--b3d-my-hi', _hsl(m1.h, Math.max(m1.s-10,0), Math.min(m1.l+25*t, 97)));
+    root.setProperty('--b3d-my-sh', _hsl(m2.h+5, Math.min(m2.s+10,100), Math.max(m2.l-20*t, 5)));
+    var o1 = _hexToHSL(otC1), o2 = _hexToHSL(otC2);
+    root.setProperty('--b3d-ot-hi', _hsl(o1.h, Math.max(o1.s-10,0), Math.min(o1.l+15*t, 99)));
+    root.setProperty('--b3d-ot-sh', _hsl(o2.h+5, Math.min(o2.s+10,100), Math.max(o2.l-15*t, 10)));
+  }
+}
+
 function applyAppearance(d) {
   if (!d) return;
   if (d.timezone) store.timezone = d.timezone;
@@ -248,159 +314,6 @@ function applyAppearance(d) {
     document.body.style.transform = 'translateZ(0)';
     requestAnimationFrame(function() { document.body.style.transform = ''; });
   });
-}
-
-/* ===== 气泡样式计算 & CSS 变量写入 ===== */
-function _hexToHSL(hex) {
-  if (!hex || hex.charAt(0) !== '#') return {h:0,s:0,l:50};
-  var r = parseInt(hex.slice(1,3),16)/255;
-  var g = parseInt(hex.slice(3,5),16)/255;
-  var b = parseInt(hex.slice(5,7),16)/255;
-  var max = Math.max(r,g,b), min = Math.min(r,g,b);
-  var h, s, l = (max+min)/2;
-  if (max===min) { h=s=0; } else {
-    var dd = max-min; s = l>.5 ? dd/(2-max-min) : dd/(max+min);
-    if (max===r) h = ((g-b)/dd + (g<b?6:0))/6;
-    else if (max===g) h = ((b-r)/dd+2)/6;
-    else h = ((r-g)/dd+4)/6;
-  }
-  return {h:h*360, s:s*100, l:l*100};
-}
-function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
-
-function _calc3D(c1, c2, t, bv, bdr, sdw) {
-  /* t=整体强度, bv=倒角, bdr=描边, sdw=外阴影 */
-  var h1 = _hexToHSL(c1), h2 = _hexToHSL(c2);
-
-  /* 自适应高光 */
-  var hiRoom = 97 - h1.l;
-  var hiL = h1.l + hiRoom * 0.6 * t;
-  var hiS = h1.s * (1 - 0.25 * t);
-  var highlight = _hsl(h1.h, hiS, hiL);
-
-  /* 自适应暗部 */
-  var shRoom = h2.l - 5;
-  var shL = h2.l - shRoom * 0.55 * t;
-  var shS = Math.min(h2.s * (1 + 0.2 * t), 100);
-  var shadow = _hsl(h2.h + 8, shS, shL);
-
-  /* 主渐变 + 镜面 */
-  var mainGrad = 'linear-gradient(155deg,'+highlight+' 0%,'+c1+' 30%,'+c2+' 72%,'+shadow+' 100%)';
-  var specAlpha = 0.35 * t;
-  var specular = 'radial-gradient(ellipse 70% 45% at 28% 18%,rgba(255,255,255,'+specAlpha+') 0%,rgba(255,255,255,'+(specAlpha*0.2)+') 55%,transparent 75%)';
-
-  /* ---- 渐变描边 (background-clip 技巧) ----
-   * 开启时: 每个内容层加 padding-box, 最底层放描边渐变 border-box
-   * border 设为 transparent 让描边渐变从 border 区域露出 */
-  var bg, border;
-  if (bdr && bdr.on) {
-    var bdrGrad = 'linear-gradient(155deg,'+bdr.c1+','+bdr.c2+')';
-    bg = specular + ' padding-box,' + mainGrad + ' padding-box,' + bdrGrad + ' border-box';
-    border = bdr.width + 'px solid transparent';
-  } else {
-    bg = specular + ',' + mainGrad;
-    border = 'none';
-  }
-
-  /* 倒角 inset shadow */
-  var bOff  = 1 + bv * 5;
-  var bBlur = 2 + bv * 5;
-  var bHiA  = (0.35 + bv * 0.35) * t;
-  var bShA  = (0.12 + bv * 0.18) * t;
-
-  var sh = 'inset 0 '+bOff+'px '+bBlur+'px rgba(255,255,255,'+bHiA+')'
-    + ',inset 0 -'+bOff+'px '+bBlur+'px rgba(0,0,0,'+bShA+')'
-    + ',inset '+bOff+'px 0 '+bBlur+'px rgba(255,255,255,'+(bHiA*0.4)+')'
-    + ',inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+')';
-
-  /* 外投影 (用户可调: distance+angle → X/Y, blur, spread, opacity, color) */
-  if (sdw && sdw.opacity > 0) {
-    var _r = parseInt(sdw.color.slice(1,3),16) || 0;
-    var _g = parseInt(sdw.color.slice(3,5),16) || 0;
-    var _b = parseInt(sdw.color.slice(5,7),16) || 0;
-    var _a = sdw.opacity / 100;
-    var rad = sdw.angle * Math.PI / 180;
-    var sx = Math.round(sdw.offset * Math.sin(rad) * 10) / 10;
-    var sy = Math.round(-sdw.offset * Math.cos(rad) * 10) / 10;
-    sh += ','+sx+'px '+sy+'px '+sdw.blur+'px '+sdw.spread+'px rgba('+_r+','+_g+','+_b+','+_a+')';
-  }
-
-  return { bg: bg, shadow: sh, border: border };
-}
-
-function _applyBubbleStyle(d) {
-  var style = d.bubble_style || 'flat';
-  var myC1  = d.bubble_my_color1    || '#667eea';
-  var myC2  = d.bubble_my_color2    || '#667eea';
-  var myT   = d.bubble_my_text      || '#ffffff';
-  var otC1  = d.bubble_other_color1 || '#ffffff';
-  var otC2  = d.bubble_other_color2 || '#ffffff';
-  var otT   = d.bubble_other_text   || '#333333';
-  var angle = (parseInt(d.bubble_gradient_angle) || 135) + 'deg';
-  var inten = (parseInt(d.bubble_3d_intensity) || 60) / 100;
-  var bevel = (parseInt(d.bubble_3d_bevel) || 50) / 100;
-
-  /* 描边参数 */
-  var bdr = {
-    on:    d.bubble_border_on === '1' || d.bubble_border_on === true,
-    width: parseInt(d.bubble_border_width) || 2,
-    c1:    d.bubble_border_color1 || '#ffffff',
-    c2:    d.bubble_border_color2 || '#000000'
-  };
-
-  /* 阴影参数 */
-  var sdw = {
-    offset:  parseInt(d.bubble_shadow_offset)  || 4,
-    blur:    parseInt(d.bubble_shadow_blur)    || 12,
-    spread:  parseInt(d.bubble_shadow_spread)  || 0,
-    opacity: parseInt(d.bubble_shadow_opacity) || 15,
-    color:   d.bubble_shadow_color || '#000000',
-    angle:   parseInt(d.bubble_shadow_angle)   || 180
-  };
-
-  var root = document.documentElement.style;
-  root.setProperty('--b-my-c1', myC1);
-  root.setProperty('--b-my-c2', myC2);
-  root.setProperty('--b-my-text', myT);
-  root.setProperty('--b-ot-c1', otC1);
-  root.setProperty('--b-ot-c2', otC2);
-  root.setProperty('--b-ot-text', otT);
-  root.setProperty('--b-angle', angle);
-
-  /* 3D 预计算 (静态基准) */
-  var my3 = _calc3D(myC1, myC2, inten, bevel, bdr, sdw);
-  var ot3 = _calc3D(otC1, otC2, inten, bevel, bdr, sdw);
-  root.setProperty('--b-my-3d-bg', my3.bg);
-  root.setProperty('--b-my-3d-shadow', my3.shadow);
-  root.setProperty('--b-my-3d-border', my3.border);
-  root.setProperty('--b-ot-3d-bg', ot3.bg);
-  root.setProperty('--b-ot-3d-shadow', ot3.shadow);
-  root.setProperty('--b-ot-3d-border', ot3.border);
-
-  /* body class 切换 */
-  var cl = document.body.classList;
-  cl.remove('bubble-2d-single', 'bubble-2d-flow', 'bubble-3d');
-  if (style === '2d-single') cl.add('bubble-2d-single');
-  else if (style === '2d-flow') cl.add('bubble-2d-flow');
-  else if (style === '3d') cl.add('bubble-3d');
-
-  /* ===== 新引擎集成 ===== */
-  var dynOn = (d.bubble_dynamic_on === '1' || d.bubble_dynamic_on === true) && style === '3d';
-  if (dynOn && window.BubbleEngine) {
-    BubbleEngine.start(parseInt(d.bubble_3d_intensity) || 60);
-  } else if (window.BubbleEngine) {
-    BubbleEngine.stop();
-  }
-
-  /* 3D 背景 */
-  var bgTheme = d.bg_3d_theme || 'none';
-  if (bgTheme !== 'none' && window.Scene3D) {
-    Scene3D.init(document.querySelector('.messages-wrapper'));
-    Scene3D.setTheme(bgTheme);
-    if (window.Gyro && !Gyro.active) Gyro.start();
-  } else if (window.Scene3D) {
-    Scene3D.destroy();
-  }
 }
 
 /* ===== 用户导入/导出 ===== */

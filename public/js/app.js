@@ -99,7 +99,6 @@ const App = {
     let _recordChunks = [];
     let _recordTimer = null;
     let _recordStart = 0;
-    let _cancelled = false;
     const VOICE_MAX_SEC = 60;
 
     async function startRecording() {
@@ -113,17 +112,15 @@ const App = {
         if (mime) opts.mimeType = mime;
         _mediaRecorder = new MediaRecorder(stream, opts);
         _recordChunks = [];
-        _cancelled = false;
         _mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) _recordChunks.push(e.data); };
         _mediaRecorder.onstop = function() {
           stream.getTracks().forEach(function(t) { t.stop(); });
           var dur = (Date.now() - _recordStart) / 1000;
-          if (!_cancelled && _recordChunks.length && dur >= 0.5) {
+          if (_recordChunks.length && dur >= 0.5) {
             var blob = new Blob(_recordChunks, { type: mime || 'audio/webm' });
             uploadVoice(blob, Math.round(dur));
           }
           _recordChunks = [];
-          _cancelled = false;
         };
         _recordStart = Date.now();
         _mediaRecorder.start(500); /* 每 500ms 收集一次 */
@@ -147,7 +144,7 @@ const App = {
     function cancelRecording() {
       if (_recordTimer) { clearInterval(_recordTimer); _recordTimer = null; }
       if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
-        _cancelled = true; /* 标志位防止 onstop 异步回调中上传 */
+        _recordChunks = []; /* 清空使 onstop 不上传 */
         _mediaRecorder.stop();
       }
       isRecording.value = false;
@@ -536,8 +533,8 @@ const App = {
                  :style="{background:modalData.appDraft.bg_color||'#f0f2f5'}"></div>
             <!-- 聊天气泡占位 -->
             <div class="appear-preview-chat">
-              <div class="appear-preview-bubble other" :style="bubblePreviewStyle(false)">{{modalData.appDraft.chat_title||'TeamChat'}}</div>
-              <div class="appear-preview-bubble my" :style="bubblePreviewStyle(true)">你好 👋</div>
+              <div class="appear-preview-bubble other" :style="bubblePreview('other')">{{modalData.appDraft.chat_title||'TeamChat'}}</div>
+              <div class="appear-preview-bubble my" :style="bubblePreview('my')">你好 👋</div>
             </div>
             <!-- 输入栏占位 -->
             <div class="appear-preview-inputbar">
@@ -746,169 +743,75 @@ const App = {
     <!-- ===== 气泡样式 ===== -->
     <div class="section">
       <h4>💬 气泡样式</h4>
+
       <label class="field-label">效果模式</label>
       <div class="radio-group">
-        <label><input type="radio" value="flat" v-model="modalData.appDraft.bubble_style"> 扁平</label>
-        <label><input type="radio" value="2d-single" v-model="modalData.appDraft.bubble_style"> 2D 单泡渐变</label>
-        <label><input type="radio" value="2d-flow" v-model="modalData.appDraft.bubble_style"> 2D 整体渐变</label>
-        <label><input type="radio" value="3d" v-model="modalData.appDraft.bubble_style"> 3D 宫崎骏</label>
+        <label><input type="radio" value="flat"       v-model="modalData.appDraft.bubble_style"> 扁平</label>
+        <label><input type="radio" value="2d-single"  v-model="modalData.appDraft.bubble_style"> 2D 渐变</label>
+        <label><input type="radio" value="2d-flow"    v-model="modalData.appDraft.bubble_style"> 2D 流式渐变</label>
+        <label><input type="radio" value="3d"         v-model="modalData.appDraft.bubble_style"> 3D 宫崎骏</label>
       </div>
+      <p v-if="modalData.appDraft.bubble_style==='2d-single'" class="hint">每个气泡独立渐变，可调角度。</p>
+      <p v-if="modalData.appDraft.bubble_style==='2d-flow'" class="hint">颜色从上到下跨气泡渐变，整屏形成色彩过渡。</p>
+      <p v-if="modalData.appDraft.bubble_style==='3d'" class="hint">卡通立体风，宫崎骏式顶光 + 高光 + 软阴影。</p>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+        <!-- 我的气泡 -->
         <div>
           <label class="field-label">我的气泡 · 主色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color1"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_my_color1}}</span></div>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color1"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_color1}}</span></div>
         </div>
         <div>
           <label class="field-label">我的气泡 · 副色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color2"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_my_color2}}</span></div>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color2"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_color2}}</span></div>
         </div>
         <div>
           <label class="field-label">对方气泡 · 主色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color1"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_other_color1}}</span></div>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color1"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_color1}}</span></div>
         </div>
         <div>
           <label class="field-label">对方气泡 · 副色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color2"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_other_color2}}</span></div>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color2"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_color2}}</span></div>
         </div>
         <div>
-          <label class="field-label">我的文字色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_text"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_my_text}}</span></div>
+          <label class="field-label">我的气泡 · 文字色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_text"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_text}}</span></div>
         </div>
         <div>
-          <label class="field-label">对方文字色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_text"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_other_text}}</span></div>
+          <label class="field-label">对方气泡 · 文字色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_text"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_text}}</span></div>
         </div>
       </div>
 
-      <div v-if="modalData.appDraft.bubble_style==='2d-single'" style="margin-top:10px">
+      <div v-if="modalData.appDraft.bubble_style==='2d-single'" style="margin-top:12px">
         <label class="field-label">渐变角度: {{modalData.appDraft.bubble_gradient_angle}}°</label>
         <input type="range" min="0" max="360" step="5" v-model.number="modalData.appDraft.bubble_gradient_angle" style="width:100%">
       </div>
 
-      <div v-if="modalData.appDraft.bubble_style==='3d'" style="margin-top:10px">
+      <div v-if="modalData.appDraft.bubble_style==='3d'" style="margin-top:12px">
         <label class="field-label">3D 强度: {{modalData.appDraft.bubble_3d_intensity}}%</label>
-        <input type="range" min="10" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_intensity" style="width:100%">
-        <label class="field-label" style="margin-top:8px">倒角宽度: {{modalData.appDraft.bubble_3d_bevel}}%</label>
-        <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_bevel" style="width:100%">
-        <p class="hint">3D 强度控制气泡透视倾斜和光照的响应幅度。倒角控制边缘亮暗棱宽度。</p>
-
-        <!-- 动态气泡 (陀螺仪 / 桌面鼠标) -->
-        <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:linear-gradient(135deg,#f8f9ff,#f0f4ff)">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500;color:#333">
-            <input type="checkbox" v-model="modalData.appDraft.bubble_dynamic_on"> 🔮 动态光照
-          </label>
-          <p class="hint" style="margin-top:6px">
-            气泡跟随手机三轴姿态 (陀螺仪+磁力计) 实时倾斜，高光、阴影仿真实 3D 物体。
-            桌面端自动降级为鼠标视差。CSS transform 硬件加速，不掉帧。
-          </p>
-          <div v-if="modalData.appDraft.bubble_dynamic_on" style="margin-top:8px">
-            <div class="gyro-status" :class="{warn:!modalData.gyroState.supported}" style="font-size:13px;padding:4px 0">
-              {{modalData.gyroState.msg}}
-            </div>
-            <div v-if="modalData.gyroState.needsPerm && !modalData.gyroState.permGranted" style="margin-top:6px">
-              <button class="secondary" @click="doRequestGyroPerm()" style="font-size:13px">🔓 授权传感器 (iOS)</button>
-            </div>
-            <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
-              <button @click="modalData.gyroState.capturing ? doStopGyroCapture() : doStartGyroCapture()"
-                      :disabled="!modalData.gyroState.supported"
-                      style="font-size:13px">
-                {{modalData.gyroState.capturing ? '⏹ 停止' : '📡 测试传感器'}}
-              </button>
-              <button v-if="modalData.gyroState.capturing" @click="doSaveGyroBaseline()"
-                      class="secondary" style="font-size:13px">🔄 重置零点</button>
-            </div>
-            <div v-if="modalData.gyroState.live" style="margin-top:6px;font-size:12px;color:#667eea;font-family:monospace">
-              α={{modalData.gyroState.live.alpha?.toFixed(1)}}°
-              β={{modalData.gyroState.live.beta?.toFixed(1)}}°
-              γ={{modalData.gyroState.live.gamma?.toFixed(1)}}°
-            </div>
-          </div>
-        </div>
+        <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_intensity" style="width:100%">
       </div>
 
-      <!-- 3D 背景主题 (独立于气泡模式) -->
-      <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:linear-gradient(135deg,#f0f0ff,#e8f4ff)">
-        <div style="font-size:14px;font-weight:500;color:#333;margin-bottom:8px">🌌 3D 背景</div>
-        <p class="hint">Three.js 硬件加速粒子背景，叠加在壁纸/纯色之上。陀螺仪/鼠标驱动视角。</p>
-        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-          <label><input type="radio" value="none" v-model="modalData.appDraft.bg_3d_theme"> 关闭</label>
-          <label><input type="radio" value="starfield" v-model="modalData.appDraft.bg_3d_theme"> ✨ 星空</label>
-          <label><input type="radio" value="aurora" v-model="modalData.appDraft.bg_3d_theme"> 🌌 极光</label>
-        </div>
-      </div>
-
-      <!-- 描边设置 (所有模式可用) -->
-      <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500;color:#333">
-          <input type="checkbox" v-model="modalData.appDraft.bubble_border_on"> 启用渐变描边
-        </label>
-        <div v-if="modalData.appDraft.bubble_border_on" style="margin-top:10px">
-          <label class="field-label">描边宽度: {{modalData.appDraft.bubble_border_width}}px</label>
-          <input type="range" min="1" max="6" step="1" v-model.number="modalData.appDraft.bubble_border_width" style="width:100%">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
-            <div>
-              <label class="field-label">描边起始色</label>
-              <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_border_color1"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_border_color1}}</span></div>
-            </div>
-            <div>
-              <label class="field-label">描边结束色</label>
-              <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_border_color2"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_border_color2}}</span></div>
-            </div>
-          </div>
-          <p class="hint">描边使用渐变色，从左上到右下过渡，圆角处不会断裂。</p>
-        </div>
-      </div>
-
-      <!-- 阴影设置 -->
-      <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px">
-        <div style="font-size:14px;font-weight:500;color:#333;margin-bottom:8px">🌑 外投影</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div>
-            <label class="field-label">投射距离: {{modalData.appDraft.bubble_shadow_offset}}px</label>
-            <input type="range" min="0" max="20" step="1" v-model.number="modalData.appDraft.bubble_shadow_offset" style="width:100%">
-          </div>
-          <div>
-            <label class="field-label">投射角度: {{modalData.appDraft.bubble_shadow_angle}}°</label>
-            <input type="range" min="0" max="355" step="5" v-model.number="modalData.appDraft.bubble_shadow_angle" style="width:100%">
-          </div>
-          <div>
-            <label class="field-label">模糊半径: {{modalData.appDraft.bubble_shadow_blur}}px</label>
-            <input type="range" min="0" max="40" step="1" v-model.number="modalData.appDraft.bubble_shadow_blur" style="width:100%">
-          </div>
-          <div>
-            <label class="field-label">扩散半径: {{modalData.appDraft.bubble_shadow_spread}}px</label>
-            <input type="range" min="-5" max="15" step="1" v-model.number="modalData.appDraft.bubble_shadow_spread" style="width:100%">
-          </div>
-          <div>
-            <label class="field-label">不透明度: {{modalData.appDraft.bubble_shadow_opacity}}%</label>
-            <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_shadow_opacity" style="width:100%">
-          </div>
-          <div>
-            <label class="field-label">阴影颜色</label>
-            <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_shadow_color"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_shadow_color}}</span></div>
-          </div>
-        </div>
-        <p class="hint">角度: 180°=正下方, 0°=正上方, 90°=右侧, 270°=左侧。不透明度 0%=无阴影。</p>
-      </div>
-
-      <!-- 气泡迷你预览 -->
-      <div style="margin-top:12px;background:#f0f2f5;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:11px;color:#888;margin-bottom:2px;font-weight:600">预览</div>
+      <!-- 气泡效果实时小预览 -->
+      <div style="margin-top:14px;padding:14px;background:#f0f2f5;border-radius:12px;display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;gap:8px;align-items:flex-start">
           <div style="width:28px;height:28px;border-radius:50%;background:#e8eeff;flex-shrink:0"></div>
-          <div :style="bubblePreviewStyle(false)" style="padding:8px 12px;border-radius:4px 14px 14px 14px;font-size:13px;line-height:1.4;max-width:70%;position:relative;overflow:hidden">今天天气真好</div>
+          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">大家好！这是对方的气泡效果</div>
         </div>
         <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse">
           <div style="width:28px;height:28px;border-radius:50%;background:#667eea;flex-shrink:0"></div>
-          <div :style="bubblePreviewStyle(true)" style="padding:8px 12px;border-radius:14px 4px 14px 14px;font-size:13px;line-height:1.4;max-width:70%;position:relative;overflow:hidden">是呀，出去走走吧！</div>
+          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">你好！这是我的气泡效果 🎨</div>
         </div>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <div style="width:28px;height:28px;border-radius:50%;background:#fce7f3;flex-shrink:0"></div>
-          <div :style="bubblePreviewStyle(false)" style="padding:8px 12px;border-radius:4px 14px 14px 14px;font-size:13px;line-height:1.4;max-width:70%;position:relative;overflow:hidden">好呀，我也正想说</div>
+          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">看起来效果不错呢 ✨</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse">
+          <div style="width:28px;height:28px;border-radius:50%;background:#667eea;flex-shrink:0"></div>
+          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">太好了 👍</div>
         </div>
       </div>
-      <p class="hint" style="margin-top:6px">扁平模式下副色不生效; 2D 整体渐变模式下颜色从上到下流动。</p>
     </div>
 
     <!-- ===== 视差壁纸 (实验性 - 接口预留) ===== -->
@@ -916,7 +819,7 @@ const App = {
       <h4>📱 视差壁纸 (Parallax / Perspective) <span class="exp-tag">实验性</span></h4>
       <p class="hint">
         启用后, 上方设置的图片/视频背景会随手机姿态轻微位移, 模拟透视景深。
-        此功能后期会扩展为多图层穿透视差; 当前为接口预留。
+        此功能后期会扩展为多图层穿透视差; 当前为接口预留, 同时已可工作于单层背景。
       </p>
 
       <label class="parallax-toggle">
@@ -926,6 +829,36 @@ const App = {
 
       <label class="field-label">视差强度: {{modalData.appDraft.parallax_strength}}</label>
       <input type="range" min="0" max="100" step="1" v-model.number="modalData.appDraft.parallax_strength" style="width:100%">
+
+      <div class="gyro-box">
+        <div class="gyro-status" :class="{warn:!modalData.gyroState.supported}">
+          {{modalData.gyroState.msg}}
+        </div>
+
+        <div v-if="modalData.gyroState.live" class="gyro-live">
+          实时姿态: β={{modalData.gyroState.live.beta?.toFixed(1)}}°
+          γ={{modalData.gyroState.live.gamma?.toFixed(1)}}°
+          α={{modalData.gyroState.live.alpha?.toFixed(1)}}°
+        </div>
+
+        <div v-if="modalData.gyroState.baselineLocal" class="gyro-baseline">
+          已采基线: β={{modalData.gyroState.baselineLocal.beta.toFixed(2)}}°
+          γ={{modalData.gyroState.baselineLocal.gamma.toFixed(2)}}°
+          ({{modalData.gyroState.baselineLocal.samples}} 样本)
+        </div>
+
+        <div class="gyro-actions">
+          <button v-if="modalData.gyroState.needsPerm && !modalData.gyroState.permGranted"
+                  class="secondary" @click="doRequestGyroPerm()">🔓 授权陀螺仪</button>
+          <button :disabled="!modalData.gyroState.supported || modalData.gyroState.capturing"
+                  @click="doStartGyroCapture()">
+            {{modalData.gyroState.capturing?'📡 采集中…':'📍 校准 (放平 2 秒)'}}
+          </button>
+          <button v-if="modalData.gyroState.baselineLocal" class="success" @click="doSaveGyroBaseline()">
+            💾 仅保存基线
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ===== 底部操作 ===== -->
@@ -1093,75 +1026,30 @@ const App = {
       }
     },
 
-    /* 气泡迷你预览样式 (外观定制面板内) */
-    bubblePreviewStyle(isMy) {
+    /* 外观预览: 气泡小样样式 */
+    bubblePreview(who) {
       var a = (this.modalData && this.modalData.appDraft) || {};
-      var st = a.bubble_style || 'flat';
-      var c1 = isMy ? (a.bubble_my_color1||'#667eea') : (a.bubble_other_color1||'#ffffff');
-      var c2 = isMy ? (a.bubble_my_color2||c1)        : (a.bubble_other_color2||c1);
-      var tc = isMy ? (a.bubble_my_text||'#fff')       : (a.bubble_other_text||'#333');
-      var ang = (a.bubble_gradient_angle || 135) + 'deg';
-      var r = { color: tc };
-      if (st === 'flat') {
-        r.background = c1;
-        if (!isMy) r.boxShadow = '0 1px 2px rgba(0,0,0,.06)';
-      } else if (st === '2d-single') {
-        r.background = 'linear-gradient('+ang+','+c1+','+c2+')';
-      } else if (st === '2d-flow') {
-        r.background = 'linear-gradient(180deg,'+c1+','+c2+')';
-      } else if (st === '3d') {
-        var t = (a.bubble_3d_intensity || 60) / 100;
-        var bv = (a.bubble_3d_bevel || 50) / 100;
-        var bdrOn = !!a.bubble_border_on;
-        var bdrW = parseInt(a.bubble_border_width) || 2;
-        var bdrC1 = a.bubble_border_color1 || '#ffffff';
-        var bdrC2 = a.bubble_border_color2 || '#000000';
-        /* HSL 工具 */
-        var _h = function(hex) {
-          if (!hex||hex.charAt(0)!=='#') return {h:0,s:0,l:50};
-          var rv=parseInt(hex.slice(1,3),16)/255, gv=parseInt(hex.slice(3,5),16)/255, bvv=parseInt(hex.slice(5,7),16)/255;
-          var mx=Math.max(rv,gv,bvv),mn=Math.min(rv,gv,bvv),hh,ss,ll=(mx+mn)/2;
-          if(mx===mn){hh=ss=0}else{var dd=mx-mn;ss=ll>.5?dd/(2-mx-mn):dd/(mx+mn);if(mx===rv)hh=((gv-bvv)/dd+(gv<bvv?6:0))/6;else if(mx===gv)hh=((bvv-rv)/dd+2)/6;else hh=((rv-gv)/dd+4)/6}
-          return{h:hh*360,s:ss*100,l:ll*100};
-        };
-        var _hs = function(h,s,l){return'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'};
-        var h1=_h(c1),h2x=_h(c2);
-        var hi=_hs(h1.h, h1.s*(1-0.25*t), h1.l+(97-h1.l)*0.6*t);
-        var sh=_hs(h2x.h+8, Math.min(h2x.s*(1+0.2*t),100), h2x.l-(h2x.l-5)*0.55*t);
-        var specA = 0.35*t;
-        var specLayer = 'radial-gradient(ellipse 70% 45% at 28% 18%,rgba(255,255,255,'+specA+') 0%,rgba(255,255,255,'+(specA*0.2)+') 55%,transparent 75%)';
-        var mainLayer = 'linear-gradient(155deg,'+hi+' 0%,'+c1+' 30%,'+c2+' 72%,'+sh+' 100%)';
-        /* 渐变描边: padding-box/border-box 技巧 */
-        if (bdrOn) {
-          r.background = specLayer+' padding-box,'+mainLayer+' padding-box,linear-gradient(155deg,'+bdrC1+','+bdrC2+') border-box';
-          r.border = bdrW+'px solid transparent';
-        } else {
-          r.background = specLayer+','+mainLayer;
-          r.border = 'none';
-        }
-        /* 倒角 */
-        var bOff=1+bv*5, bBlur2=2+bv*5;
-        var bHiA=(0.35+bv*0.35)*t, bShA=(0.12+bv*0.18)*t;
-        r.boxShadow = 'inset 0 '+bOff+'px '+bBlur2+'px rgba(255,255,255,'+bHiA+'),'
-          + 'inset 0 -'+bOff+'px '+bBlur2+'px rgba(0,0,0,'+bShA+'),'
-          + 'inset '+bOff+'px 0 '+bBlur2+'px rgba(255,255,255,'+(bHiA*0.4)+'),'
-          + 'inset -'+(bOff*0.7)+'px 0 '+bBlur2+'px rgba(0,0,0,'+(bShA*0.5)+')';
-        /* 外投影 (用户可调) */
-        var sOff = parseInt(a.bubble_shadow_offset) || 4;
-        var sBlr = parseInt(a.bubble_shadow_blur) || 12;
-        var sSpr = parseInt(a.bubble_shadow_spread) || 0;
-        var sOpa = parseInt(a.bubble_shadow_opacity) || 15;
-        var sClr = a.bubble_shadow_color || '#000000';
-        var sAng = parseInt(a.bubble_shadow_angle) || 180;
-        if (sOpa > 0) {
-          var _sr=parseInt(sClr.slice(1,3),16)||0, _sg=parseInt(sClr.slice(3,5),16)||0, _sb=parseInt(sClr.slice(5,7),16)||0;
-          var _rad = sAng * Math.PI / 180;
-          var _sx = Math.round(sOff * Math.sin(_rad) * 10) / 10;
-          var _sy = Math.round(-sOff * Math.cos(_rad) * 10) / 10;
-          r.boxShadow += ','+_sx+'px '+_sy+'px '+sBlr+'px '+sSpr+'px rgba('+_sr+','+_sg+','+_sb+','+(sOpa/100)+')';
-        }
+      var mode = a.bubble_style || 'flat';
+      var isMy = who === 'my';
+      var c1 = isMy ? (a.bubble_my_color1 || '#667eea') : (a.bubble_other_color1 || '#ffffff');
+      var c2 = isMy ? (a.bubble_my_color2 || '#764ba2') : (a.bubble_other_color2 || '#e8eeff');
+      var txt = isMy ? (a.bubble_my_text || '#ffffff') : (a.bubble_other_text || '#333333');
+      var angle = (parseInt(a.bubble_gradient_angle) || 135) + 'deg';
+      var s = { color: txt };
+      if (mode === 'flat') {
+        s.background = c1;
+      } else if (mode === '2d-single') {
+        s.background = 'linear-gradient(' + angle + ',' + c1 + ',' + c2 + ')';
+      } else if (mode === '2d-flow') {
+        s.background = 'linear-gradient(180deg,' + c1 + ',' + c2 + ')';
+      } else if (mode === '3d') {
+        var t = (parseInt(a.bubble_3d_intensity) || 60) / 100;
+        s.background = 'linear-gradient(160deg,' + c1 + ' 0%,' + c2 + ' 100%)';
+        s.boxShadow = 'inset 0 ' + (2*t) + 'px ' + (4*t) + 'px rgba(255,255,255,' + (.35*t) + '), inset 0 -' + (2*t) + 'px ' + (6*t) + 'px rgba(0,0,0,' + (.12*t) + '), 0 ' + (2*t) + 'px ' + (6*t) + 'px rgba(0,0,0,' + (.08*t) + ')';
+        s.borderTop = '.5px solid rgba(255,255,255,' + (.4*t) + ')';
+        s.borderBottom = '.5px solid rgba(0,0,0,' + (.08*t) + ')';
       }
-      return r;
+      return s;
     },
 
     joinChainById(id) {
