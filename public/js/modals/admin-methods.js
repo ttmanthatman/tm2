@@ -143,7 +143,8 @@ const AdminMethods = {
       bubble_shadow_opacity: parseInt(a.bubble_shadow_opacity) || 15,
       bubble_shadow_color:   a.bubble_shadow_color   || '#000000',
       bubble_shadow_angle:   parseInt(a.bubble_shadow_angle)   || 180,
-      bubble_dynamic_on:     a.bubble_dynamic_on === '1'
+      bubble_dynamic_on:     a.bubble_dynamic_on === '1',
+      bg_3d_theme:           a.bg_3d_theme || 'none'
     };
     this.modalData.gyroState = this._gyroInitState();
     this.currentModal = 'appearance';
@@ -285,7 +286,8 @@ const AdminMethods = {
       bubble_shadow_opacity: String(a.bubble_shadow_opacity ?? 15),
       bubble_shadow_color:   a.bubble_shadow_color || '#000000',
       bubble_shadow_angle:   String(a.bubble_shadow_angle ?? 180),
-      bubble_dynamic_on:     a.bubble_dynamic_on ? '1' : '0'
+      bubble_dynamic_on:     a.bubble_dynamic_on ? '1' : '0',
+      bg_3d_theme:           a.bg_3d_theme || 'none'
     };
     try {
       const r = await fetch(API + '/api/settings/appearance', {
@@ -332,10 +334,10 @@ const AdminMethods = {
     g.capturing = true; g.msg = '📡 测试中, 倾斜手机看实时数据…';
     /* 临时监听, 回写到 UI */
     var self = this;
-    self._gyroTestCb = function(tx, ty) {
-      g.live = { tiltX: tx, tiltY: ty };
+    self._gyroTestCb = function(alpha, beta, gamma) {
+      g.live = { alpha: alpha, beta: beta, gamma: gamma };
     };
-    Gyro.onTilt(self._gyroTestCb);
+    Gyro.on(self._gyroTestCb);
     await Gyro.start();
     g.msg = '倾斜手机查看实时数据; 开启动态气泡后效果自动生效';
   },
@@ -343,7 +345,7 @@ const AdminMethods = {
   doStopGyroCapture() {
     const g = this.modalData.gyroState;
     if (this._gyroTestCb) {
-      Gyro.offTilt(this._gyroTestCb);
+      Gyro.off(this._gyroTestCb);
       this._gyroTestCb = null;
     }
     g.capturing = false;
@@ -352,10 +354,10 @@ const AdminMethods = {
   },
 
   async doSaveGyroBaseline() {
-    /* 简化: Gyro 模块自动校准, 这里只做手动重校准 */
     if (!window.Gyro) return;
-    Gyro.recalibrate();
-    this.modalData.gyroState.msg = '✅ 已重置基线, 保持当前姿态 1 秒';
+    Gyro.stop();
+    await Gyro.start();
+    this.modalData.gyroState.msg = '✅ 已重置, 当前朝向为新零点';
   },
 
   async doSaveAppearanceLegacy_REMOVED() { /* 占位, 防止旧调用报错 */ },

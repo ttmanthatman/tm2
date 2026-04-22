@@ -12,6 +12,10 @@
   --b-angle:135deg;
   --b-my-3d-bg:#667eea;--b-my-3d-shadow:none;--b-my-3d-border:none;
   --b-ot-3d-bg:#fff;--b-ot-3d-shadow:0 1px 2px rgba(0,0,0,.06);--b-ot-3d-border:none;
+  /* CSS 3D Bubble Engine */
+  --b3-rx:0deg;--b3-ry:0deg;
+  --b3-shadow-x:0px;--b3-shadow-y:4px;
+  --b3-light:1;--b3-spec-x:30%;--b3-spec-y:20%;
 }
 .messages-wrapper{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;position:relative}
 .messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;position:relative;z-index:1}
@@ -40,10 +44,26 @@ body.bubble-2d-single .msg.other .msg-bubble{background:linear-gradient(var(--b-
 body.bubble-2d-flow .msg.my .msg-bubble{background:linear-gradient(180deg,var(--b-my-c1),var(--b-my-c2));background-attachment:fixed;color:var(--b-my-text)}
 body.bubble-2d-flow .msg.other .msg-bubble{background:linear-gradient(180deg,var(--b-ot-c1),var(--b-ot-c2));background-attachment:fixed;color:var(--b-ot-text);box-shadow:none}
 
-/* ===== Bubble 3D: Ghibli / Miyazaki cartoon shading ===== */
-body.bubble-3d .msg.my .msg-bubble{background:var(--b-my-3d-bg);color:var(--b-my-text);box-shadow:var(--b-my-3d-shadow);border:var(--b-my-3d-border)}
-body.bubble-3d .msg.other .msg-bubble{background:var(--b-ot-3d-bg);color:var(--b-ot-text);box-shadow:var(--b-ot-3d-shadow);border:var(--b-ot-3d-border)}
-/* Arrow hidden in 3D mode (border conflicts with 3D border) */
+/* ===== Bubble 3D: GPU-accelerated perspective + dynamic lighting ===== */
+body.bubble-3d .msg-bubble{
+  will-change:transform,filter;
+  transform:perspective(800px) rotateX(var(--b3-rx)) rotateY(var(--b3-ry));
+  transform-origin:center center;
+  transition:transform .08s ease-out;
+  filter:brightness(var(--b3-light)) drop-shadow(var(--b3-shadow-x) var(--b3-shadow-y) 10px rgba(0,0,0,.18));
+}
+body.bubble-3d .msg.my .msg-bubble{
+  background:var(--b-my-3d-bg);color:var(--b-my-text);border:var(--b-my-3d-border);
+}
+body.bubble-3d .msg.other .msg-bubble{
+  background:var(--b-ot-3d-bg);color:var(--b-ot-text);border:var(--b-ot-3d-border);
+}
+/* 镜面高光伪元素 (GPU 合成, 跟随光照位置) */
+body.bubble-3d .msg-bubble::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  border-radius:inherit;pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at var(--b3-spec-x) var(--b3-spec-y), rgba(255,255,255,.28) 0%, rgba(255,255,255,.05) 50%, transparent 75%);
+}
 body.bubble-3d .msg-bubble::before{display:none}
 
 .msg-time{font-size:10px;opacity:.5;text-align:right;margin-top:4px}

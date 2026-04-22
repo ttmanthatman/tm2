@@ -384,141 +384,23 @@ function _applyBubbleStyle(d) {
   else if (style === '2d-flow') cl.add('bubble-2d-flow');
   else if (style === '3d') cl.add('bubble-3d');
 
-  /* ===== 动态气泡: 缓存 + 启停 ===== */
+  /* ===== 新引擎集成 ===== */
   var dynOn = (d.bubble_dynamic_on === '1' || d.bubble_dynamic_on === true) && style === '3d';
-  if (dynOn) {
-    _dynBubbleCache = _buildDynCache(myC1, myC2, otC1, otC2, inten, bevel, bdr, sdw);
-    _startDynamicBubble();
-  } else {
-    _stopDynamicBubble();
-    _dynBubbleCache = null;
-  }
-}
-
-/* ===== 动态气泡引擎 (陀螺仪 → CSS 变量) ===== */
-
-var _dynBubbleCache  = null;  /* 预计算的静态数据 */
-var _dynBubbleActive = false;
-
-/**
- * 预计算不随倾斜变化的部分 (颜色 HSL、高光/暗部色、倒角参数、阴影 RGB)
- * 每次外观设置变化时重建一次, 之后每帧只做简单算术
- */
-function _buildDynCache(myC1, myC2, otC1, otC2, t, bv, bdr, sdw) {
-  function _colors(c1, c2) {
-    var h1 = _hexToHSL(c1), h2 = _hexToHSL(c2);
-    return {
-      c1: c1, c2: c2,
-      highlight: _hsl(h1.h, h1.s * (1 - 0.25 * t), h1.l + (97 - h1.l) * 0.6 * t),
-      shadow:    _hsl(h2.h + 8, Math.min(h2.s * (1 + 0.2 * t), 100), h2.l - (h2.l - 5) * 0.55 * t)
-    };
-  }
-  /* 阴影颜色 RGB */
-  var sR = parseInt((sdw.color || '#000000').slice(1,3), 16) || 0;
-  var sG = parseInt((sdw.color || '#000000').slice(3,5), 16) || 0;
-  var sB = parseInt((sdw.color || '#000000').slice(5,7), 16) || 0;
-
-  return {
-    my: _colors(myC1, myC2),
-    ot: _colors(otC1, otC2),
-    t: t, bv: bv, bdr: bdr, sdw: sdw,
-    sRGB: [sR, sG, sB],
-    specAlpha: 0.35 * t,
-    /* 倒角 (不随倾斜变化, 预算好) */
-    bOff:  1 + bv * 5,
-    bBlur: 2 + bv * 5,
-    bHiA:  (0.35 + bv * 0.35) * t,
-    bShA:  (0.12 + bv * 0.18) * t
-  };
-}
-
-/**
- * 每帧: 根据倾斜 tx/ty 重建 3D CSS 变量
- * tx: -1(左倾) ~ +1(右倾)   ty: -1(前倾) ~ +1(后倾)
- *
- * 物理模型: 假设光源固定在正上方
- *   手机左倾 → 物体表面左侧更靠近光 → 高光左移, 阴影右移
- *   手机前倾 → 物体上沿更靠近光 → 高光上移, 阴影下移
- */
-function _dynBuild3D(col, C, tx, ty) {
-  /* ---- 镜面高光位置 ---- */
-  var specX = (28 - tx * 22).toFixed(1);   /* 6% ~ 50% */
-  var specY = (18 - ty * 14).toFixed(1);   /* 4% ~ 32% */
-  var spec  = 'radial-gradient(ellipse 70% 45% at ' + specX + '% ' + specY
-            + '%,rgba(255,255,255,' + C.specAlpha + ') 0%,rgba(255,255,255,'
-            + (C.specAlpha * 0.2).toFixed(3) + ') 55%,transparent 75%)';
-
-  /* ---- 主渐变角度 ---- */
-  var gAng = (155 - tx * 25).toFixed(1);   /* ±25° */
-  var main = 'linear-gradient(' + gAng + 'deg,' + col.highlight + ' 0%,'
-           + col.c1 + ' 30%,' + col.c2 + ' 72%,' + col.shadow + ' 100%)';
-
-  /* ---- 描边渐变 (同步偏转) ---- */
-  var bg, border;
-  if (C.bdr && C.bdr.on) {
-    var bdrG = 'linear-gradient(' + gAng + 'deg,' + C.bdr.c1 + ',' + C.bdr.c2 + ')';
-    bg = spec + ' padding-box,' + main + ' padding-box,' + bdrG + ' border-box';
-    border = C.bdr.width + 'px solid transparent';
-  } else {
-    bg = spec + ',' + main;
-    border = 'none';
+  if (dynOn && window.BubbleEngine) {
+    BubbleEngine.start(parseInt(d.bubble_3d_intensity) || 60);
+  } else if (window.BubbleEngine) {
+    BubbleEngine.stop();
   }
 
-  /* ---- 倒角 inset (光方向随倾斜偏移) ---- */
-  var bo = C.bOff, bb = C.bBlur;
-  var hxOff = (bo * tx * -0.6).toFixed(1);
-  var hyOff = (bo * (1 - ty * 0.4)).toFixed(1);
-  var syOff = (bo * (1 + ty * 0.4)).toFixed(1);
-
-  var sh = 'inset ' + hxOff + 'px ' + hyOff + 'px ' + bb + 'px rgba(255,255,255,' + C.bHiA + ')'
-    + ',inset ' + (-hxOff * 0.7).toFixed(1) + 'px -' + syOff + 'px ' + bb + 'px rgba(0,0,0,' + C.bShA + ')'
-    + ',inset ' + (bo - tx * bo * 0.3).toFixed(1) + 'px 0 ' + bb + 'px rgba(255,255,255,' + (C.bHiA * 0.4).toFixed(3) + ')'
-    + ',inset -' + (bo * 0.7 + tx * bo * 0.3).toFixed(1) + 'px 0 ' + bb + 'px rgba(0,0,0,' + (C.bShA * 0.5).toFixed(3) + ')';
-
-  /* ---- 外投影 (方向跟随倾斜) ---- */
-  var sdw = C.sdw;
-  if (sdw && sdw.opacity > 0) {
-    var dynAng = sdw.angle + tx * 40 - ty * 25;
-    var rad = dynAng * Math.PI / 180;
-    var sx = (sdw.offset * Math.sin(rad)).toFixed(1);
-    var sy = (-sdw.offset * Math.cos(rad)).toFixed(1);
-    var sa = (sdw.opacity / 100).toFixed(2);
-    sh += ',' + sx + 'px ' + sy + 'px ' + sdw.blur + 'px ' + sdw.spread
-        + 'px rgba(' + C.sRGB[0] + ',' + C.sRGB[1] + ',' + C.sRGB[2] + ',' + sa + ')';
+  /* 3D 背景 */
+  var bgTheme = d.bg_3d_theme || 'none';
+  if (bgTheme !== 'none' && window.Scene3D) {
+    Scene3D.init(document.querySelector('.messages-wrapper'));
+    Scene3D.setTheme(bgTheme);
+    if (window.Gyro && !Gyro.active) Gyro.start();
+  } else if (window.Scene3D) {
+    Scene3D.destroy();
   }
-
-  return { bg: bg, shadow: sh, border: border };
-}
-
-function _onGyroTilt(tx, ty) {
-  var C = _dynBubbleCache;
-  if (!C) return;
-
-  var root = document.documentElement.style;
-  var my3 = _dynBuild3D(C.my, C, tx, ty);
-  var ot3 = _dynBuild3D(C.ot, C, tx, ty);
-  root.setProperty('--b-my-3d-bg',     my3.bg);
-  root.setProperty('--b-my-3d-shadow', my3.shadow);
-  root.setProperty('--b-my-3d-border', my3.border);
-  root.setProperty('--b-ot-3d-bg',     ot3.bg);
-  root.setProperty('--b-ot-3d-shadow', ot3.shadow);
-  root.setProperty('--b-ot-3d-border', ot3.border);
-}
-
-function _startDynamicBubble() {
-  if (_dynBubbleActive) return;
-  if (!window.Gyro || !Gyro.isSupported()) return;
-  Gyro.onTilt(_onGyroTilt);
-  Gyro.start();   /* 返回 Promise, 但不需要 await */
-  _dynBubbleActive = true;
-}
-
-function _stopDynamicBubble() {
-  if (!_dynBubbleActive) return;
-  Gyro.offTilt(_onGyroTilt);
-  /* 如果没有其他监听器在用就停掉 */
-  Gyro.stop();
-  _dynBubbleActive = false;
 }
 
 /* ===== 用户导入/导出 ===== */

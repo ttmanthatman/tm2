@@ -791,37 +791,50 @@ const App = {
         <input type="range" min="10" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_intensity" style="width:100%">
         <label class="field-label" style="margin-top:8px">倒角宽度: {{modalData.appDraft.bubble_3d_bevel}}%</label>
         <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_bevel" style="width:100%">
-        <p class="hint">倒角控制气泡边缘亮暗棱的宽度。0=柔和发光, 100=硬朗棱角。</p>
+        <p class="hint">3D 强度控制气泡透视倾斜和光照的响应幅度。倒角控制边缘亮暗棱宽度。</p>
 
-        <!-- 动态气泡 (陀螺仪) -->
+        <!-- 动态气泡 (陀螺仪 / 桌面鼠标) -->
         <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:linear-gradient(135deg,#f8f9ff,#f0f4ff)">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500;color:#333">
-            <input type="checkbox" v-model="modalData.appDraft.bubble_dynamic_on"> 🔮 动态光照 (陀螺仪)
+            <input type="checkbox" v-model="modalData.appDraft.bubble_dynamic_on"> 🔮 动态光照
           </label>
           <p class="hint" style="margin-top:6px">
-            开启后气泡的高光、渐变、阴影会跟随手机倾斜实时变化，仿佛气泡是真实的 3D 物体。
-            需要移动设备支持陀螺仪; 桌面端无效。
+            气泡跟随手机三轴姿态 (陀螺仪+磁力计) 实时倾斜，高光、阴影仿真实 3D 物体。
+            桌面端自动降级为鼠标视差。CSS transform 硬件加速，不掉帧。
           </p>
           <div v-if="modalData.appDraft.bubble_dynamic_on" style="margin-top:8px">
             <div class="gyro-status" :class="{warn:!modalData.gyroState.supported}" style="font-size:13px;padding:4px 0">
               {{modalData.gyroState.msg}}
             </div>
             <div v-if="modalData.gyroState.needsPerm && !modalData.gyroState.permGranted" style="margin-top:6px">
-              <button class="secondary" @click="doRequestGyroPerm()" style="font-size:13px">🔓 授权陀螺仪 (iOS)</button>
+              <button class="secondary" @click="doRequestGyroPerm()" style="font-size:13px">🔓 授权传感器 (iOS)</button>
             </div>
             <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
               <button @click="modalData.gyroState.capturing ? doStopGyroCapture() : doStartGyroCapture()"
                       :disabled="!modalData.gyroState.supported"
                       style="font-size:13px">
-                {{modalData.gyroState.capturing ? '⏹ 停止测试' : '📡 测试陀螺仪'}}
+                {{modalData.gyroState.capturing ? '⏹ 停止' : '📡 测试传感器'}}
               </button>
               <button v-if="modalData.gyroState.capturing" @click="doSaveGyroBaseline()"
-                      class="secondary" style="font-size:13px">🔄 重置基线</button>
+                      class="secondary" style="font-size:13px">🔄 重置零点</button>
             </div>
             <div v-if="modalData.gyroState.live" style="margin-top:6px;font-size:12px;color:#667eea;font-family:monospace">
-              倾斜: X={{modalData.gyroState.live.tiltX?.toFixed(2)}} Y={{modalData.gyroState.live.tiltY?.toFixed(2)}}
+              α={{modalData.gyroState.live.alpha?.toFixed(1)}}°
+              β={{modalData.gyroState.live.beta?.toFixed(1)}}°
+              γ={{modalData.gyroState.live.gamma?.toFixed(1)}}°
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- 3D 背景主题 (独立于气泡模式) -->
+      <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:linear-gradient(135deg,#f0f0ff,#e8f4ff)">
+        <div style="font-size:14px;font-weight:500;color:#333;margin-bottom:8px">🌌 3D 背景</div>
+        <p class="hint">Three.js 硬件加速粒子背景，叠加在壁纸/纯色之上。陀螺仪/鼠标驱动视角。</p>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <label><input type="radio" value="none" v-model="modalData.appDraft.bg_3d_theme"> 关闭</label>
+          <label><input type="radio" value="starfield" v-model="modalData.appDraft.bg_3d_theme"> ✨ 星空</label>
+          <label><input type="radio" value="aurora" v-model="modalData.appDraft.bg_3d_theme"> 🌌 极光</label>
         </div>
       </div>
 
