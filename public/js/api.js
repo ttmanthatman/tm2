@@ -395,14 +395,15 @@ function _applyBubbleStyle(d) {
   }
 }
 
-/* ===== 动态气泡引擎 (陀螺仪 → CSS 变量) ===== */
+/* ===== 动态气泡引擎 (三轴姿态 + 磁力计 → 世界空间光照 → CSS 变量) ===== */
 
-var _dynBubbleCache  = null;  /* 预计算的静态数据 */
+var _dynBubbleCache  = null;
 var _dynBubbleActive = false;
+var _dynBaseAlpha    = null;   /* 首次 alpha 读数, 作为罗盘零点 */
+var _D2R = Math.PI / 180;
 
 /**
- * 预计算不随倾斜变化的部分 (颜色 HSL、高光/暗部色、倒角参数、阴影 RGB)
- * 每次外观设置变化时重建一次, 之后每帧只做简单算术
+ * 预计算颜色/倒角/描边等不随姿态变化的静态数据
  */
 function _buildDynCache(myC1, myC2, otC1, otC2, t, bv, bdr, sdw) {
   function _colors(c1, c2) {
@@ -413,7 +414,6 @@ function _buildDynCache(myC1, myC2, otC1, otC2, t, bv, bdr, sdw) {
       shadow:    _hsl(h2.h + 8, Math.min(h2.s * (1 + 0.2 * t), 100), h2.l - (h2.l - 5) * 0.55 * t)
     };
   }
-  /* 阴影颜色 RGB */
   var sR = parseInt((sdw.color || '#000000').slice(1,3), 16) || 0;
   var sG = parseInt((sdw.color || '#000000').slice(3,5), 16) || 0;
   var sB = parseInt((sdw.color || '#000000').slice(5,7), 16) || 0;
@@ -424,7 +424,6 @@ function _buildDynCache(myC1, myC2, otC1, otC2, t, bv, bdr, sdw) {
     t: t, bv: bv, bdr: bdr, sdw: sdw,
     sRGB: [sR, sG, sB],
     specAlpha: 0.35 * t,
-    /* 倒角 (不随倾斜变化, 预算好) */
     bOff:  1 + bv * 5,
     bBlur: 2 + bv * 5,
     bHiA:  (0.35 + bv * 0.35) * t,
@@ -433,23 +432,23 @@ function _buildDynCache(myC1, myC2, otC1, otC2, t, bv, bdr, sdw) {
 }
 
 /**
- * 每帧: 根据倾斜 tx/ty 重建 3D CSS 变量
- * tx: -1(左倾) ~ +1(右倾)   ty: -1(前倾) ~ +1(后倾)
+ * 根据屏幕空间光向量 (lx, ly) 重建一个气泡的 CSS
  *
- * 物理模型: 假设光源固定在正上方
- *   手机左倾 → 物体表面左侧更靠近光 → 高光左移, 阴影右移
- *   手机前倾 → 物体上沿更靠近光 → 高光上移, 阴影下移
+ *   lx >0 光从左侧来  lx <0 光从右侧来
+ *   ly <0 光从上方来  ly >0 光从下方来
+ *
+ * lx/ly 无上限 (三角函数组合可达 ±√2), 完全不截断
  */
-function _dynBuild3D(col, C, tx, ty) {
-  /* ---- 镜面高光位置 ---- */
-  var specX = (28 - tx * 22).toFixed(1);   /* 6% ~ 50% */
-  var specY = (18 - ty * 14).toFixed(1);   /* 4% ~ 32% */
-  var spec  = 'radial-gradient(ellipse 70% 45% at ' + specX + '% ' + specY
+function _dynBuild3D(col, C, lx, ly) {
+  /* ---- 镜面高光: 跟随光源方向, 覆盖气泡全表面 ---- */
+  var specX = (50 + lx * 45).toFixed(1);
+  var specY = (50 + ly * 40).toFixed(1);
+  var spec  = 'radial-gradient(ellipse 70% 50% at ' + specX + '% ' + specY
             + '%,rgba(255,255,255,' + C.specAlpha + ') 0%,rgba(255,255,255,'
-            + (C.specAlpha * 0.2).toFixed(3) + ') 55%,transparent 75%)';
+            + (C.specAlpha * 0.15).toFixed(3) + ') 55%,transparent 80%)';
 
-  /* ---- 主渐变角度 ---- */
-  var gAng = (155 - tx * 25).toFixed(1);   /* ±25° */
+  /* ---- 主渐变: 光来的方向 → 渐变角度 ---- */
+  var gAng = (Math.atan2(lx, -ly) / _D2R).toFixed(1);
   var main = 'linear-gradient(' + gAng + 'deg,' + col.highlight + ' 0%,'
            + col.c1 + ' 30%,' + col.c2 + ' 72%,' + col.shadow + ' 100%)';
 
@@ -464,24 +463,30 @@ function _dynBuild3D(col, C, tx, ty) {
     border = 'none';
   }
 
-  /* ---- 倒角 inset (光方向随倾斜偏移) ---- */
+  /* ---- 倒角 inset: 光侧亮, 背光侧暗 ---- */
   var bo = C.bOff, bb = C.bBlur;
-  var hxOff = (bo * tx * -0.6).toFixed(1);
-  var hyOff = (bo * (1 - ty * 0.4)).toFixed(1);
-  var syOff = (bo * (1 + ty * 0.4)).toFixed(1);
+  /* lx, ly 直接驱动四边亮暗比例 */
+  var hiT = Math.max(0, -ly);           /* 光从上方来 → 顶边亮 */
+  var hiB = Math.max(0,  ly);           /* 光从下方来 → 底边亮 */
+  var hiL = Math.max(0,  lx);           /* 光从左侧来 → 左边亮 */
+  var hiR = Math.max(0, -lx);           /* 光从右侧来 → 右边亮 */
 
-  var sh = 'inset ' + hxOff + 'px ' + hyOff + 'px ' + bb + 'px rgba(255,255,255,' + C.bHiA + ')'
-    + ',inset ' + (-hxOff * 0.7).toFixed(1) + 'px -' + syOff + 'px ' + bb + 'px rgba(0,0,0,' + C.bShA + ')'
-    + ',inset ' + (bo - tx * bo * 0.3).toFixed(1) + 'px 0 ' + bb + 'px rgba(255,255,255,' + (C.bHiA * 0.4).toFixed(3) + ')'
-    + ',inset -' + (bo * 0.7 + tx * bo * 0.3).toFixed(1) + 'px 0 ' + bb + 'px rgba(0,0,0,' + (C.bShA * 0.5).toFixed(3) + ')';
+  var sh = 'inset 0 '  + (bo * (0.3 + hiT * 0.7)).toFixed(1) + 'px ' + bb + 'px rgba(255,255,255,' + (C.bHiA * (0.2 + hiT * 0.8)).toFixed(3) + ')'
+    + ',inset 0 -' + (bo * (0.3 + hiB * 0.7)).toFixed(1) + 'px ' + bb + 'px rgba(255,255,255,' + (C.bHiA * 0.3 * hiB).toFixed(3) + ')'
+    + ',inset '  + (bo * (0.3 + hiL * 0.7)).toFixed(1) + 'px 0 ' + bb + 'px rgba(255,255,255,' + (C.bHiA * 0.4 * (0.2 + hiL * 0.8)).toFixed(3) + ')'
+    + ',inset -' + (bo * (0.3 + hiR * 0.7)).toFixed(1) + 'px 0 ' + bb + 'px rgba(255,255,255,' + (C.bHiA * 0.4 * (0.2 + hiR * 0.8)).toFixed(3) + ')';
+  /* 暗面 (光的对侧) */
+  sh += ',inset 0 '  + (bo * (0.3 + hiB * 0.7)).toFixed(1) + 'px ' + bb + 'px rgba(0,0,0,' + (C.bShA * hiB).toFixed(3) + ')';
+  sh += ',inset 0 -' + (bo * (0.3 + hiT * 0.7)).toFixed(1) + 'px ' + bb + 'px rgba(0,0,0,' + (C.bShA * (0.15 + hiT * 0.85)).toFixed(3) + ')';
+  sh += ',inset '  + (bo * (0.3 + hiR * 0.7)).toFixed(1) + 'px 0 ' + bb + 'px rgba(0,0,0,' + (C.bShA * 0.5 * hiR).toFixed(3) + ')';
+  sh += ',inset -' + (bo * (0.3 + hiL * 0.7)).toFixed(1) + 'px 0 ' + bb + 'px rgba(0,0,0,' + (C.bShA * 0.5 * hiL).toFixed(3) + ')';
 
-  /* ---- 外投影 (方向跟随倾斜) ---- */
+  /* ---- 外投影: 方向 = 光的对面 ---- */
   var sdw = C.sdw;
   if (sdw && sdw.opacity > 0) {
-    var dynAng = sdw.angle + tx * 40 - ty * 25;
-    var rad = dynAng * Math.PI / 180;
-    var sx = (sdw.offset * Math.sin(rad)).toFixed(1);
-    var sy = (-sdw.offset * Math.cos(rad)).toFixed(1);
+    /* 阴影落向光的反方向 */
+    var sx = (-lx * sdw.offset).toFixed(1);
+    var sy = (-ly * sdw.offset).toFixed(1);
     var sa = (sdw.opacity / 100).toFixed(2);
     sh += ',' + sx + 'px ' + sy + 'px ' + sdw.blur + 'px ' + sdw.spread
         + 'px rgba(' + C.sRGB[0] + ',' + C.sRGB[1] + ',' + C.sRGB[2] + ',' + sa + ')';
@@ -490,13 +495,43 @@ function _dynBuild3D(col, C, tx, ty) {
   return { bg: bg, shadow: sh, border: border };
 }
 
-function _onGyroTilt(tx, ty) {
+/**
+ * 陀螺仪回调: 三轴姿态 → 屏幕空间光向量 → CSS
+ *
+ * 物理模型: 虚拟光源固定在真实世界空间 (头顶上方)
+ *   beta  (俯仰) → sin/cos 映射垂直光分量, 无截断
+ *   gamma (横滚) → sin 映射水平光分量, 无截断
+ *   alpha (罗盘) → 旋转光向量, 模拟手机朝向不同方位时光源方向变化
+ */
+function _onGyroOrientation(alpha, beta, gamma) {
   var C = _dynBubbleCache;
   if (!C) return;
 
+  /* 记录首次 alpha 作为罗盘零点 */
+  if (_dynBaseAlpha === null) _dynBaseAlpha = alpha;
+
+  var bRad = beta  * _D2R;
+  var gRad = gamma * _D2R;
+
+  /* 罗盘偏移 (处理 0↔360 环绕) */
+  var aDiff = alpha - _dynBaseAlpha;
+  if (aDiff > 180)  aDiff -= 360;
+  if (aDiff < -180) aDiff += 360;
+  var aRad = aDiff * _D2R;
+
+  /* 屏幕空间光方向 (不截断, sin/cos 天然全值域) */
+  var rawLx =  Math.sin(gRad);     /* 横滚 → 水平光 */
+  var rawLy = -Math.cos(bRad);     /* 俯仰 → 垂直光 (俯=光从上, 仰=光从下) */
+
+  /* 罗盘旋转: 世界固定光源在不同朝向下的屏幕投影 */
+  var ca = Math.cos(aRad), sa = Math.sin(aRad);
+  var lx =  rawLx * ca + rawLy * sa;
+  var ly = -rawLx * sa + rawLy * ca;
+
+  /* 写入 CSS */
   var root = document.documentElement.style;
-  var my3 = _dynBuild3D(C.my, C, tx, ty);
-  var ot3 = _dynBuild3D(C.ot, C, tx, ty);
+  var my3 = _dynBuild3D(C.my, C, lx, ly);
+  var ot3 = _dynBuild3D(C.ot, C, lx, ly);
   root.setProperty('--b-my-3d-bg',     my3.bg);
   root.setProperty('--b-my-3d-shadow', my3.shadow);
   root.setProperty('--b-my-3d-border', my3.border);
@@ -508,17 +543,18 @@ function _onGyroTilt(tx, ty) {
 function _startDynamicBubble() {
   if (_dynBubbleActive) return;
   if (!window.Gyro || !Gyro.isSupported()) return;
-  Gyro.onTilt(_onGyroTilt);
-  Gyro.start();   /* 返回 Promise, 但不需要 await */
+  _dynBaseAlpha = null;   /* 重置罗盘零点 */
+  Gyro.onOrientation(_onGyroOrientation);
+  Gyro.start();
   _dynBubbleActive = true;
 }
 
 function _stopDynamicBubble() {
   if (!_dynBubbleActive) return;
-  Gyro.offTilt(_onGyroTilt);
-  /* 如果没有其他监听器在用就停掉 */
+  Gyro.offOrientation(_onGyroOrientation);
   Gyro.stop();
   _dynBubbleActive = false;
+  _dynBaseAlpha = null;
 }
 
 /* ===== 用户导入/导出 ===== */
