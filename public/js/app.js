@@ -68,7 +68,7 @@ const App = {
           var nick = (u.nickname || '').toLowerCase();
           var uname = u.username.toLowerCase();
           return nick.indexOf(query) >= 0 || uname.indexOf(query) >= 0;
-        }).slice(0, 6);
+        }).slice(0, 20);
         if (filtered.length) {
           mentionList.value = filtered;
           mentionIdx.value = 0;
