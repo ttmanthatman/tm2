@@ -813,6 +813,34 @@ const App = {
         </div>
       </div>
 
+      <!-- 阴影设置 -->
+      <div style="margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px">
+        <div style="font-size:14px;font-weight:500;color:#333;margin-bottom:8px">🌑 外投影</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label class="field-label">偏移量: {{modalData.appDraft.bubble_shadow_offset}}px</label>
+            <input type="range" min="0" max="20" step="1" v-model.number="modalData.appDraft.bubble_shadow_offset" style="width:100%">
+          </div>
+          <div>
+            <label class="field-label">模糊半径: {{modalData.appDraft.bubble_shadow_blur}}px</label>
+            <input type="range" min="0" max="40" step="1" v-model.number="modalData.appDraft.bubble_shadow_blur" style="width:100%">
+          </div>
+          <div>
+            <label class="field-label">扩散半径: {{modalData.appDraft.bubble_shadow_spread}}px</label>
+            <input type="range" min="-5" max="15" step="1" v-model.number="modalData.appDraft.bubble_shadow_spread" style="width:100%">
+          </div>
+          <div>
+            <label class="field-label">不透明度: {{modalData.appDraft.bubble_shadow_opacity}}%</label>
+            <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_shadow_opacity" style="width:100%">
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <label class="field-label">阴影颜色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_shadow_color"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_shadow_color}}</span></div>
+        </div>
+        <p class="hint">偏移=下落距离, 模糊=柔化程度, 扩散=放大/缩小阴影, 不透明度=浓淡。设为 0% 关闭阴影。</p>
+      </div>
+
       <!-- 气泡迷你预览 -->
       <div style="margin-top:12px;background:#f0f2f5;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
         <div style="font-size:11px;color:#888;margin-bottom:2px;font-weight:600">预览</div>
@@ -1091,13 +1119,22 @@ const App = {
           r.border = 'none';
         }
         /* 倒角 */
-        var bOff=1+bv*5, bBlur=2+bv*5;
+        var bOff=1+bv*5, bBlur2=2+bv*5;
         var bHiA=(0.35+bv*0.35)*t, bShA=(0.12+bv*0.18)*t;
-        r.boxShadow = 'inset 0 '+bOff+'px '+bBlur+'px rgba(255,255,255,'+bHiA+'),'
-          + 'inset 0 -'+bOff+'px '+bBlur+'px rgba(0,0,0,'+bShA+'),'
-          + 'inset '+bOff+'px 0 '+bBlur+'px rgba(255,255,255,'+(bHiA*0.4)+'),'
-          + 'inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+'),'
-          + '0 '+(3*t)+'px '+(10*t)+'px rgba(0,0,0,'+(0.14*t)+')';
+        r.boxShadow = 'inset 0 '+bOff+'px '+bBlur2+'px rgba(255,255,255,'+bHiA+'),'
+          + 'inset 0 -'+bOff+'px '+bBlur2+'px rgba(0,0,0,'+bShA+'),'
+          + 'inset '+bOff+'px 0 '+bBlur2+'px rgba(255,255,255,'+(bHiA*0.4)+'),'
+          + 'inset -'+(bOff*0.7)+'px 0 '+bBlur2+'px rgba(0,0,0,'+(bShA*0.5)+')';
+        /* 外投影 (用户可调) */
+        var sOff = parseInt(a.bubble_shadow_offset) || 4;
+        var sBlr = parseInt(a.bubble_shadow_blur) || 12;
+        var sSpr = parseInt(a.bubble_shadow_spread) || 0;
+        var sOpa = parseInt(a.bubble_shadow_opacity) || 15;
+        var sClr = a.bubble_shadow_color || '#000000';
+        if (sOpa > 0) {
+          var _sr=parseInt(sClr.slice(1,3),16)||0, _sg=parseInt(sClr.slice(3,5),16)||0, _sb=parseInt(sClr.slice(5,7),16)||0;
+          r.boxShadow += ',0 '+sOff+'px '+sBlr+'px '+sSpr+'px rgba('+_sr+','+_sg+','+_sb+','+(sOpa/100)+')';
+        }
       }
       return r;
     },

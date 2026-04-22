@@ -136,7 +136,12 @@ const AdminMethods = {
       bubble_border_on:      a.bubble_border_on === '1',
       bubble_border_width:   parseInt(a.bubble_border_width)   || 2,
       bubble_border_color1:  a.bubble_border_color1  || '#ffffff',
-      bubble_border_color2:  a.bubble_border_color2  || '#000000'
+      bubble_border_color2:  a.bubble_border_color2  || '#000000',
+      bubble_shadow_offset:  parseInt(a.bubble_shadow_offset)  || 4,
+      bubble_shadow_blur:    parseInt(a.bubble_shadow_blur)    || 12,
+      bubble_shadow_spread:  parseInt(a.bubble_shadow_spread)  || 0,
+      bubble_shadow_opacity: parseInt(a.bubble_shadow_opacity) || 15,
+      bubble_shadow_color:   a.bubble_shadow_color   || '#000000'
     };
     this.modalData.gyroState = this._gyroInitState();
     this.currentModal = 'appearance';
@@ -271,7 +276,12 @@ const AdminMethods = {
       bubble_border_on:      a.bubble_border_on ? '1' : '0',
       bubble_border_width:   String(a.bubble_border_width || 2),
       bubble_border_color1:  a.bubble_border_color1 || '#ffffff',
-      bubble_border_color2:  a.bubble_border_color2 || '#000000'
+      bubble_border_color2:  a.bubble_border_color2 || '#000000',
+      bubble_shadow_offset:  String(a.bubble_shadow_offset ?? 4),
+      bubble_shadow_blur:    String(a.bubble_shadow_blur ?? 12),
+      bubble_shadow_spread:  String(a.bubble_shadow_spread ?? 0),
+      bubble_shadow_opacity: String(a.bubble_shadow_opacity ?? 15),
+      bubble_shadow_color:   a.bubble_shadow_color || '#000000'
     };
     try {
       const r = await fetch(API + '/api/settings/appearance', {

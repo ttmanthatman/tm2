@@ -268,8 +268,8 @@ function _hexToHSL(hex) {
 }
 function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
 
-function _calc3D(c1, c2, t, bv, bdr) {
-  /* t=整体强度 0~1, bv=倒角 0~1, bdr={on,width,c1,c2} 描边 */
+function _calc3D(c1, c2, t, bv, bdr, sdw) {
+  /* t=整体强度, bv=倒角, bdr=描边, sdw=外阴影 */
   var h1 = _hexToHSL(c1), h2 = _hexToHSL(c2);
 
   /* 自适应高光 */
@@ -311,9 +311,16 @@ function _calc3D(c1, c2, t, bv, bdr) {
   var sh = 'inset 0 '+bOff+'px '+bBlur+'px rgba(255,255,255,'+bHiA+')'
     + ',inset 0 -'+bOff+'px '+bBlur+'px rgba(0,0,0,'+bShA+')'
     + ',inset '+bOff+'px 0 '+bBlur+'px rgba(255,255,255,'+(bHiA*0.4)+')'
-    + ',inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+')'
-    + ',0 '+(3*t)+'px '+(10*t)+'px rgba(0,0,0,'+(0.14*t)+')'
-    + ',0 '+(1*t)+'px '+(3*t)+'px rgba(0,0,0,'+(0.08*t)+')';
+    + ',inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+')';
+
+  /* 外投影 (用户可调: offset / blur / spread / opacity / color) */
+  if (sdw && sdw.opacity > 0) {
+    var _r = parseInt(sdw.color.slice(1,3),16) || 0;
+    var _g = parseInt(sdw.color.slice(3,5),16) || 0;
+    var _b = parseInt(sdw.color.slice(5,7),16) || 0;
+    var _a = sdw.opacity / 100;
+    sh += ',0 '+sdw.offset+'px '+sdw.blur+'px '+sdw.spread+'px rgba('+_r+','+_g+','+_b+','+_a+')';
+  }
 
   return { bg: bg, shadow: sh, border: border };
 }
@@ -338,6 +345,15 @@ function _applyBubbleStyle(d) {
     c2:    d.bubble_border_color2 || '#000000'
   };
 
+  /* 阴影参数 */
+  var sdw = {
+    offset:  parseInt(d.bubble_shadow_offset)  || 4,
+    blur:    parseInt(d.bubble_shadow_blur)    || 12,
+    spread:  parseInt(d.bubble_shadow_spread)  || 0,
+    opacity: parseInt(d.bubble_shadow_opacity) || 15,
+    color:   d.bubble_shadow_color || '#000000'
+  };
+
   var root = document.documentElement.style;
   root.setProperty('--b-my-c1', myC1);
   root.setProperty('--b-my-c2', myC2);
@@ -348,8 +364,8 @@ function _applyBubbleStyle(d) {
   root.setProperty('--b-angle', angle);
 
   /* 3D 预计算 */
-  var my3 = _calc3D(myC1, myC2, inten, bevel, bdr);
-  var ot3 = _calc3D(otC1, otC2, inten, bevel, bdr);
+  var my3 = _calc3D(myC1, myC2, inten, bevel, bdr, sdw);
+  var ot3 = _calc3D(otC1, otC2, inten, bevel, bdr, sdw);
   root.setProperty('--b-my-3d-bg', my3.bg);
   root.setProperty('--b-my-3d-shadow', my3.shadow);
   root.setProperty('--b-my-3d-border', my3.border);
