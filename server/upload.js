@@ -68,16 +68,30 @@ const uploadBg = multer({
 });
 
 /* ===== 语音上传 ===== */
+const VOICE_MIME_EXT = {
+  "audio/webm": ".webm",
+  "audio/ogg": ".ogg",
+  "audio/mp4": ".m4a",
+  "audio/aac": ".m4a",
+  "audio/x-m4a": ".m4a",
+  "audio/mpeg": ".mp3",
+};
 const voiceStorage = multer.diskStorage({
   destination: (r, f, cb) => cb(null, VOICE_DIR),
-  filename: (r, f, cb) => cb(null, uuidv4() + ".webm")
+  filename: (r, f, cb) => {
+    /* 根据实际 MIME 类型选择正确扩展名 */
+    const base = f.mimetype.split(";")[0].trim().toLowerCase();
+    const ext = VOICE_MIME_EXT[base] || ".webm";
+    cb(null, uuidv4() + ext);
+  }
 });
 const uploadVoice = multer({
   storage: voiceStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (r, f, cb) => {
-    /* 只接受 webm / ogg (Opus 编码容器) */
-    const ok = /^audio\/(webm|ogg)/.test(f.mimetype);
+    /* 接受 webm / ogg / mp4 / aac / m4a (覆盖 iOS Safari) */
+    const base = f.mimetype.split(";")[0].trim().toLowerCase();
+    const ok = !!VOICE_MIME_EXT[base];
     cb(ok ? null : new Error("语音格式不支持"), ok);
   }
 });
