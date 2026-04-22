@@ -313,13 +313,16 @@ function _calc3D(c1, c2, t, bv, bdr, sdw) {
     + ',inset '+bOff+'px 0 '+bBlur+'px rgba(255,255,255,'+(bHiA*0.4)+')'
     + ',inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+')';
 
-  /* 外投影 (用户可调: offset / blur / spread / opacity / color) */
+  /* 外投影 (用户可调: distance+angle → X/Y, blur, spread, opacity, color) */
   if (sdw && sdw.opacity > 0) {
     var _r = parseInt(sdw.color.slice(1,3),16) || 0;
     var _g = parseInt(sdw.color.slice(3,5),16) || 0;
     var _b = parseInt(sdw.color.slice(5,7),16) || 0;
     var _a = sdw.opacity / 100;
-    sh += ',0 '+sdw.offset+'px '+sdw.blur+'px '+sdw.spread+'px rgba('+_r+','+_g+','+_b+','+_a+')';
+    var rad = sdw.angle * Math.PI / 180;
+    var sx = Math.round(sdw.offset * Math.sin(rad) * 10) / 10;
+    var sy = Math.round(-sdw.offset * Math.cos(rad) * 10) / 10;
+    sh += ','+sx+'px '+sy+'px '+sdw.blur+'px '+sdw.spread+'px rgba('+_r+','+_g+','+_b+','+_a+')';
   }
 
   return { bg: bg, shadow: sh, border: border };
@@ -351,7 +354,8 @@ function _applyBubbleStyle(d) {
     blur:    parseInt(d.bubble_shadow_blur)    || 12,
     spread:  parseInt(d.bubble_shadow_spread)  || 0,
     opacity: parseInt(d.bubble_shadow_opacity) || 15,
-    color:   d.bubble_shadow_color || '#000000'
+    color:   d.bubble_shadow_color || '#000000',
+    angle:   parseInt(d.bubble_shadow_angle)   || 180
   };
 
   var root = document.documentElement.style;

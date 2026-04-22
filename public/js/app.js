@@ -818,8 +818,12 @@ const App = {
         <div style="font-size:14px;font-weight:500;color:#333;margin-bottom:8px">🌑 外投影</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div>
-            <label class="field-label">偏移量: {{modalData.appDraft.bubble_shadow_offset}}px</label>
+            <label class="field-label">投射距离: {{modalData.appDraft.bubble_shadow_offset}}px</label>
             <input type="range" min="0" max="20" step="1" v-model.number="modalData.appDraft.bubble_shadow_offset" style="width:100%">
+          </div>
+          <div>
+            <label class="field-label">投射角度: {{modalData.appDraft.bubble_shadow_angle}}°</label>
+            <input type="range" min="0" max="355" step="5" v-model.number="modalData.appDraft.bubble_shadow_angle" style="width:100%">
           </div>
           <div>
             <label class="field-label">模糊半径: {{modalData.appDraft.bubble_shadow_blur}}px</label>
@@ -833,12 +837,12 @@ const App = {
             <label class="field-label">不透明度: {{modalData.appDraft.bubble_shadow_opacity}}%</label>
             <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_shadow_opacity" style="width:100%">
           </div>
+          <div>
+            <label class="field-label">阴影颜色</label>
+            <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_shadow_color"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_shadow_color}}</span></div>
+          </div>
         </div>
-        <div style="margin-top:8px">
-          <label class="field-label">阴影颜色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_shadow_color"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_shadow_color}}</span></div>
-        </div>
-        <p class="hint">偏移=下落距离, 模糊=柔化程度, 扩散=放大/缩小阴影, 不透明度=浓淡。设为 0% 关闭阴影。</p>
+        <p class="hint">角度: 180°=正下方, 0°=正上方, 90°=右侧, 270°=左侧。不透明度 0%=无阴影。</p>
       </div>
 
       <!-- 气泡迷你预览 -->
@@ -1131,9 +1135,13 @@ const App = {
         var sSpr = parseInt(a.bubble_shadow_spread) || 0;
         var sOpa = parseInt(a.bubble_shadow_opacity) || 15;
         var sClr = a.bubble_shadow_color || '#000000';
+        var sAng = parseInt(a.bubble_shadow_angle) || 180;
         if (sOpa > 0) {
           var _sr=parseInt(sClr.slice(1,3),16)||0, _sg=parseInt(sClr.slice(3,5),16)||0, _sb=parseInt(sClr.slice(5,7),16)||0;
-          r.boxShadow += ',0 '+sOff+'px '+sBlr+'px '+sSpr+'px rgba('+_sr+','+_sg+','+_sb+','+(sOpa/100)+')';
+          var _rad = sAng * Math.PI / 180;
+          var _sx = Math.round(sOff * Math.sin(_rad) * 10) / 10;
+          var _sy = Math.round(-sOff * Math.cos(_rad) * 10) / 10;
+          r.boxShadow += ','+_sx+'px '+_sy+'px '+sBlr+'px '+sSpr+'px rgba('+_sr+','+_sg+','+_sb+','+(sOpa/100)+')';
         }
       }
       return r;

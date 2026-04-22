@@ -141,7 +141,8 @@ const AdminMethods = {
       bubble_shadow_blur:    parseInt(a.bubble_shadow_blur)    || 12,
       bubble_shadow_spread:  parseInt(a.bubble_shadow_spread)  || 0,
       bubble_shadow_opacity: parseInt(a.bubble_shadow_opacity) || 15,
-      bubble_shadow_color:   a.bubble_shadow_color   || '#000000'
+      bubble_shadow_color:   a.bubble_shadow_color   || '#000000',
+      bubble_shadow_angle:   parseInt(a.bubble_shadow_angle)   || 180
     };
     this.modalData.gyroState = this._gyroInitState();
     this.currentModal = 'appearance';
@@ -281,7 +282,8 @@ const AdminMethods = {
       bubble_shadow_blur:    String(a.bubble_shadow_blur ?? 12),
       bubble_shadow_spread:  String(a.bubble_shadow_spread ?? 0),
       bubble_shadow_opacity: String(a.bubble_shadow_opacity ?? 15),
-      bubble_shadow_color:   a.bubble_shadow_color || '#000000'
+      bubble_shadow_color:   a.bubble_shadow_color || '#000000',
+      bubble_shadow_angle:   String(a.bubble_shadow_angle ?? 180)
     };
     try {
       const r = await fetch(API + '/api/settings/appearance', {
