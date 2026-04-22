@@ -799,10 +799,8 @@ const App = {
             <input type="checkbox" v-model="modalData.appDraft.bubble_dynamic_on"> 🔮 动态光照 (陀螺仪)
           </label>
           <p class="hint" style="margin-top:6px">
-            开启后气泡的高光、渐变、阴影会跟随手机的完整三轴姿态实时变化——
-            俯仰、横滚、甚至转身面向不同方向 (磁力计) 都会改变光照。
-            仿佛气泡是真实 3D 物体, 在固定光源下被翻转把玩。
-            需要移动设备陀螺仪 + 磁力计; 桌面端无效。
+            开启后气泡的高光、渐变、阴影会跟随手机倾斜实时变化，仿佛气泡是真实的 3D 物体。
+            需要移动设备支持陀螺仪; 桌面端无效。
           </p>
           <div v-if="modalData.appDraft.bubble_dynamic_on" style="margin-top:8px">
             <div class="gyro-status" :class="{warn:!modalData.gyroState.supported}" style="font-size:13px;padding:4px 0">
@@ -815,15 +813,13 @@ const App = {
               <button @click="modalData.gyroState.capturing ? doStopGyroCapture() : doStartGyroCapture()"
                       :disabled="!modalData.gyroState.supported"
                       style="font-size:13px">
-                {{modalData.gyroState.capturing ? '⏹ 停止测试' : '📡 测试姿态传感器'}}
+                {{modalData.gyroState.capturing ? '⏹ 停止测试' : '📡 测试陀螺仪'}}
               </button>
               <button v-if="modalData.gyroState.capturing" @click="doSaveGyroBaseline()"
-                      class="secondary" style="font-size:13px">🔄 重置罗盘零点</button>
+                      class="secondary" style="font-size:13px">🔄 重置基线</button>
             </div>
             <div v-if="modalData.gyroState.live" style="margin-top:6px;font-size:12px;color:#667eea;font-family:monospace">
-              α={{modalData.gyroState.live.alpha?.toFixed(1)}}°
-              β={{modalData.gyroState.live.beta?.toFixed(1)}}°
-              γ={{modalData.gyroState.live.gamma?.toFixed(1)}}°
+              倾斜: X={{modalData.gyroState.live.tiltX?.toFixed(2)}} Y={{modalData.gyroState.live.tiltY?.toFixed(2)}}
             </div>
           </div>
         </div>

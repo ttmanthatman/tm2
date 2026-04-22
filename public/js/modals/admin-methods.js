@@ -329,13 +329,13 @@ const AdminMethods = {
     const g = this.modalData.gyroState;
     if (!g.supported) return;
     if (!g.permGranted) { await this.doRequestGyroPerm(); if (!g.permGranted) return; }
-    g.capturing = true; g.msg = '📡 测试中, 倾斜/旋转手机看实时数据…';
+    g.capturing = true; g.msg = '📡 测试中, 倾斜手机看实时数据…';
     /* 临时监听, 回写到 UI */
     var self = this;
-    self._gyroTestCb = function(alpha, beta, gamma) {
-      g.live = { alpha: alpha, beta: beta, gamma: gamma };
+    self._gyroTestCb = function(tx, ty) {
+      g.live = { tiltX: tx, tiltY: ty };
     };
-    Gyro.onOrientation(self._gyroTestCb);
+    Gyro.onTilt(self._gyroTestCb);
     await Gyro.start();
     g.msg = '倾斜手机查看实时数据; 开启动态气泡后效果自动生效';
   },
@@ -343,7 +343,7 @@ const AdminMethods = {
   doStopGyroCapture() {
     const g = this.modalData.gyroState;
     if (this._gyroTestCb) {
-      Gyro.offOrientation(this._gyroTestCb);
+      Gyro.offTilt(this._gyroTestCb);
       this._gyroTestCb = null;
     }
     g.capturing = false;
@@ -352,11 +352,10 @@ const AdminMethods = {
   },
 
   async doSaveGyroBaseline() {
-    /* 重置罗盘零点: 停止再启动, 让模块重新初始化 */
+    /* 简化: Gyro 模块自动校准, 这里只做手动重校准 */
     if (!window.Gyro) return;
-    Gyro.stop();
-    await Gyro.start();
-    this.modalData.gyroState.msg = '✅ 已重置, 当前朝向为新的罗盘零点';
+    Gyro.recalibrate();
+    this.modalData.gyroState.msg = '✅ 已重置基线, 保持当前姿态 1 秒';
   },
 
   async doSaveAppearanceLegacy_REMOVED() { /* 占位, 防止旧调用报错 */ },
