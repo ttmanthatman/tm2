@@ -786,6 +786,9 @@ const App = {
       <div v-if="modalData.appDraft.bubble_style==='3d'" style="margin-top:10px">
         <label class="field-label">3D 强度: {{modalData.appDraft.bubble_3d_intensity}}%</label>
         <input type="range" min="10" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_intensity" style="width:100%">
+        <label class="field-label" style="margin-top:8px">倒角宽度: {{modalData.appDraft.bubble_3d_bevel}}%</label>
+        <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_bevel" style="width:100%">
+        <p class="hint">倒角控制气泡边缘亮暗棱的宽度。0=柔和发光, 100=硬朗棱角。</p>
       </div>
 
       <!-- 气泡迷你预览 -->
@@ -1037,32 +1040,37 @@ const App = {
         r.background = 'linear-gradient(180deg,'+c1+','+c2+')';
       } else if (st === '3d') {
         var t = (a.bubble_3d_intensity || 60) / 100;
-        /* 与 api.js _calc3D 同逻辑 (加强版) */
+        var bv = (a.bubble_3d_bevel || 50) / 100;
+        /* 与 api.js _calc3D 完全同逻辑 */
         var _h = function(hex) {
           if (!hex||hex.charAt(0)!=='#') return {h:0,s:0,l:50};
-          var rv=parseInt(hex.slice(1,3),16)/255, gv=parseInt(hex.slice(3,5),16)/255, bv=parseInt(hex.slice(5,7),16)/255;
-          var mx=Math.max(rv,gv,bv),mn=Math.min(rv,gv,bv),hh,ss,ll=(mx+mn)/2;
-          if(mx===mn){hh=ss=0}else{var dd=mx-mn;ss=ll>.5?dd/(2-mx-mn):dd/(mx+mn);if(mx===rv)hh=((gv-bv)/dd+(gv<bv?6:0))/6;else if(mx===gv)hh=((bv-rv)/dd+2)/6;else hh=((rv-gv)/dd+4)/6}
+          var rv=parseInt(hex.slice(1,3),16)/255, gv=parseInt(hex.slice(3,5),16)/255, bvv=parseInt(hex.slice(5,7),16)/255;
+          var mx=Math.max(rv,gv,bvv),mn=Math.min(rv,gv,bvv),hh,ss,ll=(mx+mn)/2;
+          if(mx===mn){hh=ss=0}else{var dd=mx-mn;ss=ll>.5?dd/(2-mx-mn):dd/(mx+mn);if(mx===rv)hh=((gv-bvv)/dd+(gv<bvv?6:0))/6;else if(mx===gv)hh=((bvv-rv)/dd+2)/6;else hh=((rv-gv)/dd+4)/6}
           return{h:hh*360,s:ss*100,l:ll*100};
         };
         var _hs = function(h,s,l){return'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'};
-        var h1=_h(c1),h2=_h(c2);
-        /* 高光: 大幅提亮+降饱和 */
-        var hi=_hs(h1.h, Math.max(h1.s-20*t,0), Math.min(h1.l+35*t,97));
-        /* 暗部: 色相偏移+加饱和+压暗 */
-        var sh=_hs(h2.h+8, Math.min(h2.s+15*t,100), Math.max(h2.l-30*t,5));
-        /* 镜面 + 边缘光 + 主渐变 */
-        r.background = 'radial-gradient(ellipse 80% 50% at 25% 15%,rgba(255,255,255,'+(0.5*t)+') 0%,rgba(255,255,255,'+(0.1*t)+') 50%,transparent 72%),'
-          + 'linear-gradient(135deg,rgba(255,255,255,'+(0.25*t)+') 0%,transparent 40%,transparent 85%,rgba(0,0,0,'+(0.1*t)+') 100%),'
-          + 'linear-gradient(155deg,'+hi+' 0%,'+c1+' 40%,'+c2+' 75%,'+sh+' 100%)';
-        var avgL=(h1.l+h2.l)/2, bA=(avgL>70?.15:.1)*t;
+        var h1=_h(c1),h2x=_h(c2);
+        /* 自适应高光: 按剩余空间比例提亮 */
+        var hiRoom=97-h1.l;
+        var hi=_hs(h1.h, h1.s*(1-0.25*t), h1.l+hiRoom*0.6*t);
+        /* 自适应暗部 */
+        var shRoom=h2x.l-5;
+        var sh=_hs(h2x.h+8, Math.min(h2x.s*(1+0.2*t),100), h2x.l-shRoom*0.55*t);
+        /* 镜面 + 主渐变 */
+        var specA = 0.35*t;
+        r.background = 'radial-gradient(ellipse 70% 45% at 28% 18%,rgba(255,255,255,'+specA+') 0%,rgba(255,255,255,'+(specA*0.2)+') 55%,transparent 75%),'
+          + 'linear-gradient(155deg,'+hi+' 0%,'+c1+' 30%,'+c2+' 72%,'+sh+' 100%)';
+        var avgL=(h1.l+h2x.l)/2, bA=(avgL>70?.14:.08)*t;
         r.border = '1px solid rgba(0,0,0,'+bA+')';
-        r.boxShadow = 'inset 0 '+(4*t)+'px '+(10*t)+'px rgba(255,255,255,'+(0.45*t)+'),'
-          + 'inset 0 -'+(4*t)+'px '+(12*t)+'px rgba(0,0,0,'+(0.18*t)+'),'
-          + 'inset '+(3*t)+'px 0 '+(6*t)+'px rgba(255,255,255,'+(0.15*t)+'),'
-          + 'inset -'+(2*t)+'px 0 '+(5*t)+'px rgba(0,0,0,'+(0.08*t)+'),'
-          + '0 '+(4*t)+'px '+(14*t)+'px rgba(0,0,0,'+(0.15*t)+'),'
-          + '0 '+(t)+'px '+(3*t)+'px rgba(0,0,0,'+(0.08*t)+')';
+        /* 倒角 inset shadow */
+        var bOff=1+bv*5, bBlur=2+bv*5;
+        var bHiA=(0.35+bv*0.35)*t, bShA=(0.12+bv*0.18)*t;
+        r.boxShadow = 'inset 0 '+bOff+'px '+bBlur+'px rgba(255,255,255,'+bHiA+'),'
+          + 'inset 0 -'+bOff+'px '+bBlur+'px rgba(0,0,0,'+bShA+'),'
+          + 'inset '+bOff+'px 0 '+bBlur+'px rgba(255,255,255,'+(bHiA*0.4)+'),'
+          + 'inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+'),'
+          + '0 '+(3*t)+'px '+(10*t)+'px rgba(0,0,0,'+(0.14*t)+')';
       }
       return r;
     },

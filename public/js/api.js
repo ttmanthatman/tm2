@@ -268,38 +268,53 @@ function _hexToHSL(hex) {
 }
 function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
 
-function _calc3D(c1, c2, t) {
+function _calc3D(c1, c2, t, bv) {
+  /* t = 整体强度 0~1,  bv = 倒角宽度 0~1 */
   var h1 = _hexToHSL(c1), h2 = _hexToHSL(c2);
 
-  /* 高光: 大幅提亮 + 降饱和 (宫崎骏高光偏白/粉, 不是纯色提亮) */
-  var hiL = Math.min(h1.l + 35*t, 97);
-  var hiS = Math.max(h1.s - 20*t, 0);
+  /* ---- 自适应高光 ----
+   * 不用固定 +35, 而是按"离白还有多少空间"的比例提亮。
+   * 浅色 (L=85) → 只提亮 7;  深色 (L=30) → 提亮 40 */
+  var hiRoom = 97 - h1.l;                       /* 还可以提亮多少 */
+  var hiL = h1.l + hiRoom * 0.6 * t;
+  var hiS = h1.s * (1 - 0.25 * t);              /* 降饱和但保留底色 */
   var highlight = _hsl(h1.h, hiS, hiL);
 
-  /* 暗部: 色相偏移 + 加饱和 + 大幅压暗 (宫崎骏阴影是有颜色的, 不是纯黑) */
-  var shL = Math.max(h2.l - 30*t, 5);
-  var shS = Math.min(h2.s + 15*t, 100);
+  /* ---- 自适应暗部 ----
+   * 按"离黑还有多少空间"的比例压暗 + 色相偏暖 + 加饱和 */
+  var shRoom = h2.l - 5;
+  var shL = h2.l - shRoom * 0.55 * t;
+  var shS = Math.min(h2.s * (1 + 0.2 * t), 100);
   var shadow = _hsl(h2.h + 8, shS, shL);
 
-  /* 主体渐变: 高光区占更大比例 (40%) 形成"鼓起"的面 */
-  var mainGrad = 'linear-gradient(155deg, '+highlight+' 0%, '+c1+' 40%, '+c2+' 75%, '+shadow+' 100%)';
+  /* ---- 主渐变: 保留原色区域更大 ---- */
+  var mainGrad = 'linear-gradient(155deg,'+highlight+' 0%,'+c1+' 30%,'+c2+' 72%,'+shadow+' 100%)';
 
-  /* 镜面高光: 更大更亮的椭圆 + 边缘微光带 */
-  var specular = 'radial-gradient(ellipse 80% 50% at 25% 15%, rgba(255,255,255,'+(0.5*t)+') 0%, rgba(255,255,255,'+(0.1*t)+') 50%, transparent 72%)';
-  var rimLight = 'linear-gradient(135deg, rgba(255,255,255,'+(0.25*t)+') 0%, transparent 40%, transparent 85%, rgba(0,0,0,'+(0.1*t)+') 100%)';
+  /* ---- 镜面高光 ---- */
+  var specAlpha = 0.35 * t;
+  var specular = 'radial-gradient(ellipse 70% 45% at 28% 18%,rgba(255,255,255,'+specAlpha+') 0%,rgba(255,255,255,'+(specAlpha*0.2)+') 55%,transparent 75%)';
 
-  var bg = specular + ', ' + rimLight + ', ' + mainGrad;
+  var bg = specular + ',' + mainGrad;
 
-  /* Inset shadow: 加倍强度, 营造"气球皮"的厚度感 */
-  var sh = 'inset 0 '+(4*t)+'px '+(10*t)+'px rgba(255,255,255,'+(0.45*t)+')'   /* 顶部内发光 */
-    + ', inset 0 -'+(4*t)+'px '+(12*t)+'px rgba(0,0,0,'+(0.18*t)+')'           /* 底部内阴影 */
-    + ', inset '+(3*t)+'px 0 '+(6*t)+'px rgba(255,255,255,'+(0.15*t)+')'        /* 左侧边光 */
-    + ', inset -'+(2*t)+'px 0 '+(5*t)+'px rgba(0,0,0,'+(0.08*t)+')'            /* 右侧暗边 */
-    + ', 0 '+(4*t)+'px '+(14*t)+'px rgba(0,0,0,'+(0.15*t)+')'                  /* 外投影 (浮起感) */
-    + ', 0 '+(1*t)+'px '+(3*t)+'px rgba(0,0,0,'+(0.08*t)+')';                  /* 贴近投影 */
+  /* ---- 倒角 (bevel) ----
+   * bv 控制 inset shadow 的 offset 和 blur:
+   *   bv=0 → offset 1px, blur 3px (柔和)
+   *   bv=1 → offset 6px, blur 6px (硬边, 明显棱角)
+   * 关键: blur ≈ offset, 形成清晰的"棱"而不是模糊发光 */
+  var bOff   = 1 + bv * 5;         /* 1~6 px */
+  var bBlur  = 2 + bv * 5;         /* 2~7 px (接近 offset, 边缘锐利) */
+  var bHiA   = (0.35 + bv * 0.35) * t;   /* 高光透明度 0.35~0.7 */
+  var bShA   = (0.12 + bv * 0.18) * t;   /* 阴影透明度 0.12~0.3 */
+
+  var sh = 'inset 0 '+bOff+'px '+bBlur+'px rgba(255,255,255,'+bHiA+')'      /* 顶部倒角亮边 */
+    + ',inset 0 -'+bOff+'px '+bBlur+'px rgba(0,0,0,'+bShA+')'               /* 底部倒角暗边 */
+    + ',inset '+bOff+'px 0 '+bBlur+'px rgba(255,255,255,'+(bHiA*0.4)+')'    /* 左侧光 */
+    + ',inset -'+(bOff*0.7)+'px 0 '+bBlur+'px rgba(0,0,0,'+(bShA*0.5)+')'   /* 右侧暗 */
+    + ',0 '+(3*t)+'px '+(10*t)+'px rgba(0,0,0,'+(0.14*t)+')'                /* 外投影 */
+    + ',0 '+(1*t)+'px '+(3*t)+'px rgba(0,0,0,'+(0.08*t)+')';                /* 贴近投影 */
 
   var avgL = (h1.l + h2.l) / 2;
-  var bA = (avgL > 70 ? 0.15 : 0.1) * t;
+  var bA = (avgL > 70 ? 0.14 : 0.08) * t;
 
   return { bg: bg, shadow: sh, border: 'rgba(0,0,0,'+bA+')' };
 }
@@ -314,6 +329,7 @@ function _applyBubbleStyle(d) {
   var otT   = d.bubble_other_text   || '#333333';
   var angle = (parseInt(d.bubble_gradient_angle) || 135) + 'deg';
   var inten = (parseInt(d.bubble_3d_intensity) || 60) / 100;
+  var bevel = (parseInt(d.bubble_3d_bevel) || 50) / 100;
 
   var root = document.documentElement.style;
   root.setProperty('--b-my-c1', myC1);
@@ -325,8 +341,8 @@ function _applyBubbleStyle(d) {
   root.setProperty('--b-angle', angle);
 
   /* 3D 预计算 */
-  var my3 = _calc3D(myC1, myC2, inten);
-  var ot3 = _calc3D(otC1, otC2, inten);
+  var my3 = _calc3D(myC1, myC2, inten, bevel);
+  var ot3 = _calc3D(otC1, otC2, inten, bevel);
   root.setProperty('--b-my-3d-bg', my3.bg);
   root.setProperty('--b-my-3d-shadow', my3.shadow);
   root.setProperty('--b-my-3d-border', my3.border);
