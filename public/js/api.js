@@ -151,72 +151,6 @@ function _removeBgVideo(host) {
   if (old) old.remove();
 }
 
-/* ===== Bubble Style helpers ===== */
-function _hexToHSL(hex) {
-  if (!hex || hex.length < 7) return { h: 0, s: 0, l: 50 };
-  var r = parseInt(hex.slice(1,3),16)/255;
-  var g = parseInt(hex.slice(3,5),16)/255;
-  var b = parseInt(hex.slice(5,7),16)/255;
-  var max = Math.max(r,g,b), min = Math.min(r,g,b);
-  var h = 0, s = 0, l = (max+min)/2;
-  if (max !== min) {
-    var d = max - min;
-    s = l > .5 ? d/(2-max-min) : d/(max+min);
-    if (max === r) h = ((g-b)/d + (g<b?6:0)) / 6;
-    else if (max === g) h = ((b-r)/d + 2) / 6;
-    else h = ((r-g)/d + 4) / 6;
-  }
-  return { h: h*360, s: s*100, l: l*100 };
-}
-function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
-
-function _applyBubbleStyle(d) {
-  var root = document.documentElement.style;
-  var body = document.body;
-  var mode = d.bubble_style || 'flat';
-
-  /* 清除所有 bubble mode class */
-  body.classList.remove('bubble-2d-single','bubble-2d-flow','bubble-3d');
-  if (mode !== 'flat') body.classList.add('bubble-' + mode);
-
-  var myC1   = d.bubble_my_color1    || '#667eea';
-  var myC2   = d.bubble_my_color2    || '#764ba2';
-  var otC1   = d.bubble_other_color1 || '#ffffff';
-  var otC2   = d.bubble_other_color2 || '#e8eeff';
-  var myTxt  = d.bubble_my_text      || '#ffffff';
-  var otTxt  = d.bubble_other_text   || '#333333';
-  var angle  = (parseInt(d.bubble_gradient_angle) || 135) + 'deg';
-  var t      = (parseFloat(d.bubble_3d_intensity) || 60) / 100;
-
-  root.setProperty('--bubble-my-c1',    myC1);
-  root.setProperty('--bubble-my-c2',    myC2);
-  root.setProperty('--bubble-other-c1', otC1);
-  root.setProperty('--bubble-other-c2', otC2);
-  root.setProperty('--bubble-my-color', myTxt);
-  root.setProperty('--bubble-other-color', otTxt);
-  root.setProperty('--bubble-angle',    angle);
-  root.setProperty('--bubble-3d-t',     String(t));
-
-  /* flat / 2d 模式: 直接用 c1 作为 bg 和 arrow */
-  if (mode === 'flat') {
-    root.setProperty('--bubble-my-bg',    myC1);
-    root.setProperty('--bubble-other-bg', otC1);
-  }
-  /* arrow 始终用 c1 (渐变起始色侧，视觉最接近) */
-  root.setProperty('--bubble-my-arrow',    myC1);
-  root.setProperty('--bubble-other-arrow', otC1);
-
-  /* 3D 模式: 计算高光/阴影 HSL 色 */
-  if (mode === '3d') {
-    var m1 = _hexToHSL(myC1), m2 = _hexToHSL(myC2);
-    root.setProperty('--b3d-my-hi', _hsl(m1.h, Math.max(m1.s-10,0), Math.min(m1.l+25*t, 97)));
-    root.setProperty('--b3d-my-sh', _hsl(m2.h+5, Math.min(m2.s+10,100), Math.max(m2.l-20*t, 5)));
-    var o1 = _hexToHSL(otC1), o2 = _hexToHSL(otC2);
-    root.setProperty('--b3d-ot-hi', _hsl(o1.h, Math.max(o1.s-10,0), Math.min(o1.l+15*t, 99)));
-    root.setProperty('--b3d-ot-sh', _hsl(o2.h+5, Math.min(o2.s+10,100), Math.max(o2.l-15*t, 10)));
-  }
-}
-
 function applyAppearance(d) {
   if (!d) return;
   if (d.timezone) store.timezone = d.timezone;
@@ -314,6 +248,98 @@ function applyAppearance(d) {
     document.body.style.transform = 'translateZ(0)';
     requestAnimationFrame(function() { document.body.style.transform = ''; });
   });
+}
+
+/* ===== 气泡样式计算 & CSS 变量写入 ===== */
+function _hexToHSL(hex) {
+  if (!hex || hex.charAt(0) !== '#') return {h:0,s:0,l:50};
+  var r = parseInt(hex.slice(1,3),16)/255;
+  var g = parseInt(hex.slice(3,5),16)/255;
+  var b = parseInt(hex.slice(5,7),16)/255;
+  var max = Math.max(r,g,b), min = Math.min(r,g,b);
+  var h, s, l = (max+min)/2;
+  if (max===min) { h=s=0; } else {
+    var dd = max-min; s = l>.5 ? dd/(2-max-min) : dd/(max+min);
+    if (max===r) h = ((g-b)/dd + (g<b?6:0))/6;
+    else if (max===g) h = ((b-r)/dd+2)/6;
+    else h = ((r-g)/dd+4)/6;
+  }
+  return {h:h*360, s:s*100, l:l*100};
+}
+function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
+
+function _calc3D(c1, c2, t) {
+  var h1 = _hexToHSL(c1), h2 = _hexToHSL(c2);
+
+  /* 高光: 大幅提亮 + 降饱和 (宫崎骏高光偏白/粉, 不是纯色提亮) */
+  var hiL = Math.min(h1.l + 35*t, 97);
+  var hiS = Math.max(h1.s - 20*t, 0);
+  var highlight = _hsl(h1.h, hiS, hiL);
+
+  /* 暗部: 色相偏移 + 加饱和 + 大幅压暗 (宫崎骏阴影是有颜色的, 不是纯黑) */
+  var shL = Math.max(h2.l - 30*t, 5);
+  var shS = Math.min(h2.s + 15*t, 100);
+  var shadow = _hsl(h2.h + 8, shS, shL);
+
+  /* 主体渐变: 高光区占更大比例 (40%) 形成"鼓起"的面 */
+  var mainGrad = 'linear-gradient(155deg, '+highlight+' 0%, '+c1+' 40%, '+c2+' 75%, '+shadow+' 100%)';
+
+  /* 镜面高光: 更大更亮的椭圆 + 边缘微光带 */
+  var specular = 'radial-gradient(ellipse 80% 50% at 25% 15%, rgba(255,255,255,'+(0.5*t)+') 0%, rgba(255,255,255,'+(0.1*t)+') 50%, transparent 72%)';
+  var rimLight = 'linear-gradient(135deg, rgba(255,255,255,'+(0.25*t)+') 0%, transparent 40%, transparent 85%, rgba(0,0,0,'+(0.1*t)+') 100%)';
+
+  var bg = specular + ', ' + rimLight + ', ' + mainGrad;
+
+  /* Inset shadow: 加倍强度, 营造"气球皮"的厚度感 */
+  var sh = 'inset 0 '+(4*t)+'px '+(10*t)+'px rgba(255,255,255,'+(0.45*t)+')'   /* 顶部内发光 */
+    + ', inset 0 -'+(4*t)+'px '+(12*t)+'px rgba(0,0,0,'+(0.18*t)+')'           /* 底部内阴影 */
+    + ', inset '+(3*t)+'px 0 '+(6*t)+'px rgba(255,255,255,'+(0.15*t)+')'        /* 左侧边光 */
+    + ', inset -'+(2*t)+'px 0 '+(5*t)+'px rgba(0,0,0,'+(0.08*t)+')'            /* 右侧暗边 */
+    + ', 0 '+(4*t)+'px '+(14*t)+'px rgba(0,0,0,'+(0.15*t)+')'                  /* 外投影 (浮起感) */
+    + ', 0 '+(1*t)+'px '+(3*t)+'px rgba(0,0,0,'+(0.08*t)+')';                  /* 贴近投影 */
+
+  var avgL = (h1.l + h2.l) / 2;
+  var bA = (avgL > 70 ? 0.15 : 0.1) * t;
+
+  return { bg: bg, shadow: sh, border: 'rgba(0,0,0,'+bA+')' };
+}
+
+function _applyBubbleStyle(d) {
+  var style = d.bubble_style || 'flat';
+  var myC1  = d.bubble_my_color1    || '#667eea';
+  var myC2  = d.bubble_my_color2    || '#667eea';
+  var myT   = d.bubble_my_text      || '#ffffff';
+  var otC1  = d.bubble_other_color1 || '#ffffff';
+  var otC2  = d.bubble_other_color2 || '#ffffff';
+  var otT   = d.bubble_other_text   || '#333333';
+  var angle = (parseInt(d.bubble_gradient_angle) || 135) + 'deg';
+  var inten = (parseInt(d.bubble_3d_intensity) || 60) / 100;
+
+  var root = document.documentElement.style;
+  root.setProperty('--b-my-c1', myC1);
+  root.setProperty('--b-my-c2', myC2);
+  root.setProperty('--b-my-text', myT);
+  root.setProperty('--b-ot-c1', otC1);
+  root.setProperty('--b-ot-c2', otC2);
+  root.setProperty('--b-ot-text', otT);
+  root.setProperty('--b-angle', angle);
+
+  /* 3D 预计算 */
+  var my3 = _calc3D(myC1, myC2, inten);
+  var ot3 = _calc3D(otC1, otC2, inten);
+  root.setProperty('--b-my-3d-bg', my3.bg);
+  root.setProperty('--b-my-3d-shadow', my3.shadow);
+  root.setProperty('--b-my-3d-border', my3.border);
+  root.setProperty('--b-ot-3d-bg', ot3.bg);
+  root.setProperty('--b-ot-3d-shadow', ot3.shadow);
+  root.setProperty('--b-ot-3d-border', ot3.border);
+
+  /* body class 切换 */
+  var cl = document.body.classList;
+  cl.remove('bubble-2d-single', 'bubble-2d-flow', 'bubble-3d');
+  if (style === '2d-single') cl.add('bubble-2d-single');
+  else if (style === '2d-flow') cl.add('bubble-2d-flow');
+  else if (style === '3d') cl.add('bubble-3d');
 }
 
 /* ===== 用户导入/导出 ===== */

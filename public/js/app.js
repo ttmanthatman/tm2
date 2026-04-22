@@ -533,8 +533,8 @@ const App = {
                  :style="{background:modalData.appDraft.bg_color||'#f0f2f5'}"></div>
             <!-- 聊天气泡占位 -->
             <div class="appear-preview-chat">
-              <div class="appear-preview-bubble other" :style="bubblePreview('other')">{{modalData.appDraft.chat_title||'TeamChat'}}</div>
-              <div class="appear-preview-bubble my" :style="bubblePreview('my')">你好 👋</div>
+              <div class="appear-preview-bubble other" :style="bubblePreviewStyle(false)">{{modalData.appDraft.chat_title||'TeamChat'}}</div>
+              <div class="appear-preview-bubble my" :style="bubblePreviewStyle(true)">你好 👋</div>
             </div>
             <!-- 输入栏占位 -->
             <div class="appear-preview-inputbar">
@@ -743,75 +743,68 @@ const App = {
     <!-- ===== 气泡样式 ===== -->
     <div class="section">
       <h4>💬 气泡样式</h4>
-
       <label class="field-label">效果模式</label>
       <div class="radio-group">
-        <label><input type="radio" value="flat"       v-model="modalData.appDraft.bubble_style"> 扁平</label>
-        <label><input type="radio" value="2d-single"  v-model="modalData.appDraft.bubble_style"> 2D 渐变</label>
-        <label><input type="radio" value="2d-flow"    v-model="modalData.appDraft.bubble_style"> 2D 流式渐变</label>
-        <label><input type="radio" value="3d"         v-model="modalData.appDraft.bubble_style"> 3D 宫崎骏</label>
+        <label><input type="radio" value="flat" v-model="modalData.appDraft.bubble_style"> 扁平</label>
+        <label><input type="radio" value="2d-single" v-model="modalData.appDraft.bubble_style"> 2D 单泡渐变</label>
+        <label><input type="radio" value="2d-flow" v-model="modalData.appDraft.bubble_style"> 2D 整体渐变</label>
+        <label><input type="radio" value="3d" v-model="modalData.appDraft.bubble_style"> 3D 宫崎骏</label>
       </div>
-      <p v-if="modalData.appDraft.bubble_style==='2d-single'" class="hint">每个气泡独立渐变，可调角度。</p>
-      <p v-if="modalData.appDraft.bubble_style==='2d-flow'" class="hint">颜色从上到下跨气泡渐变，整屏形成色彩过渡。</p>
-      <p v-if="modalData.appDraft.bubble_style==='3d'" class="hint">卡通立体风，宫崎骏式顶光 + 高光 + 软阴影。</p>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
-        <!-- 我的气泡 -->
         <div>
           <label class="field-label">我的气泡 · 主色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color1"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_color1}}</span></div>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color1"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_my_color1}}</span></div>
         </div>
         <div>
           <label class="field-label">我的气泡 · 副色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color2"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_color2}}</span></div>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color2"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_my_color2}}</span></div>
         </div>
         <div>
           <label class="field-label">对方气泡 · 主色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color1"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_color1}}</span></div>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color1"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_other_color1}}</span></div>
         </div>
         <div>
           <label class="field-label">对方气泡 · 副色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color2"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_color2}}</span></div>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color2"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_other_color2}}</span></div>
         </div>
         <div>
-          <label class="field-label">我的气泡 · 文字色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_text"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_text}}</span></div>
+          <label class="field-label">我的文字色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_text"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_my_text}}</span></div>
         </div>
         <div>
-          <label class="field-label">对方气泡 · 文字色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_text"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_text}}</span></div>
+          <label class="field-label">对方文字色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_text"><span style="font-size:13px;color:#666">{{modalData.appDraft.bubble_other_text}}</span></div>
         </div>
       </div>
 
-      <div v-if="modalData.appDraft.bubble_style==='2d-single'" style="margin-top:12px">
+      <div v-if="modalData.appDraft.bubble_style==='2d-single'" style="margin-top:10px">
         <label class="field-label">渐变角度: {{modalData.appDraft.bubble_gradient_angle}}°</label>
         <input type="range" min="0" max="360" step="5" v-model.number="modalData.appDraft.bubble_gradient_angle" style="width:100%">
       </div>
 
-      <div v-if="modalData.appDraft.bubble_style==='3d'" style="margin-top:12px">
+      <div v-if="modalData.appDraft.bubble_style==='3d'" style="margin-top:10px">
         <label class="field-label">3D 强度: {{modalData.appDraft.bubble_3d_intensity}}%</label>
-        <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_intensity" style="width:100%">
+        <input type="range" min="10" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_intensity" style="width:100%">
       </div>
 
-      <!-- 气泡效果实时小预览 -->
-      <div style="margin-top:14px;padding:14px;background:#f0f2f5;border-radius:12px;display:flex;flex-direction:column;gap:8px">
+      <!-- 气泡迷你预览 -->
+      <div style="margin-top:12px;background:#f0f2f5;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;color:#888;margin-bottom:2px;font-weight:600">预览</div>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <div style="width:28px;height:28px;border-radius:50%;background:#e8eeff;flex-shrink:0"></div>
-          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">大家好！这是对方的气泡效果</div>
+          <div :style="bubblePreviewStyle(false)" style="padding:8px 12px;border-radius:4px 14px 14px 14px;font-size:13px;line-height:1.4;max-width:70%;position:relative;overflow:hidden">今天天气真好</div>
         </div>
         <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse">
           <div style="width:28px;height:28px;border-radius:50%;background:#667eea;flex-shrink:0"></div>
-          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">你好！这是我的气泡效果 🎨</div>
+          <div :style="bubblePreviewStyle(true)" style="padding:8px 12px;border-radius:14px 4px 14px 14px;font-size:13px;line-height:1.4;max-width:70%;position:relative;overflow:hidden">是呀，出去走走吧！</div>
         </div>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <div style="width:28px;height:28px;border-radius:50%;background:#fce7f3;flex-shrink:0"></div>
-          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">看起来效果不错呢 ✨</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse">
-          <div style="width:28px;height:28px;border-radius:50%;background:#667eea;flex-shrink:0"></div>
-          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">太好了 👍</div>
+          <div :style="bubblePreviewStyle(false)" style="padding:8px 12px;border-radius:4px 14px 14px 14px;font-size:13px;line-height:1.4;max-width:70%;position:relative;overflow:hidden">好呀，我也正想说</div>
         </div>
       </div>
+      <p class="hint" style="margin-top:6px">扁平模式下副色不生效; 2D 整体渐变模式下颜色从上到下流动。</p>
     </div>
 
     <!-- ===== 视差壁纸 (实验性 - 接口预留) ===== -->
@@ -1026,30 +1019,52 @@ const App = {
       }
     },
 
-    /* 外观预览: 气泡小样样式 */
-    bubblePreview(who) {
+    /* 气泡迷你预览样式 (外观定制面板内) */
+    bubblePreviewStyle(isMy) {
       var a = (this.modalData && this.modalData.appDraft) || {};
-      var mode = a.bubble_style || 'flat';
-      var isMy = who === 'my';
-      var c1 = isMy ? (a.bubble_my_color1 || '#667eea') : (a.bubble_other_color1 || '#ffffff');
-      var c2 = isMy ? (a.bubble_my_color2 || '#764ba2') : (a.bubble_other_color2 || '#e8eeff');
-      var txt = isMy ? (a.bubble_my_text || '#ffffff') : (a.bubble_other_text || '#333333');
-      var angle = (parseInt(a.bubble_gradient_angle) || 135) + 'deg';
-      var s = { color: txt };
-      if (mode === 'flat') {
-        s.background = c1;
-      } else if (mode === '2d-single') {
-        s.background = 'linear-gradient(' + angle + ',' + c1 + ',' + c2 + ')';
-      } else if (mode === '2d-flow') {
-        s.background = 'linear-gradient(180deg,' + c1 + ',' + c2 + ')';
-      } else if (mode === '3d') {
-        var t = (parseInt(a.bubble_3d_intensity) || 60) / 100;
-        s.background = 'linear-gradient(160deg,' + c1 + ' 0%,' + c2 + ' 100%)';
-        s.boxShadow = 'inset 0 ' + (2*t) + 'px ' + (4*t) + 'px rgba(255,255,255,' + (.35*t) + '), inset 0 -' + (2*t) + 'px ' + (6*t) + 'px rgba(0,0,0,' + (.12*t) + '), 0 ' + (2*t) + 'px ' + (6*t) + 'px rgba(0,0,0,' + (.08*t) + ')';
-        s.borderTop = '.5px solid rgba(255,255,255,' + (.4*t) + ')';
-        s.borderBottom = '.5px solid rgba(0,0,0,' + (.08*t) + ')';
+      var st = a.bubble_style || 'flat';
+      var c1 = isMy ? (a.bubble_my_color1||'#667eea') : (a.bubble_other_color1||'#ffffff');
+      var c2 = isMy ? (a.bubble_my_color2||c1)        : (a.bubble_other_color2||c1);
+      var tc = isMy ? (a.bubble_my_text||'#fff')       : (a.bubble_other_text||'#333');
+      var ang = (a.bubble_gradient_angle || 135) + 'deg';
+      var r = { color: tc };
+      if (st === 'flat') {
+        r.background = c1;
+        if (!isMy) r.boxShadow = '0 1px 2px rgba(0,0,0,.06)';
+      } else if (st === '2d-single') {
+        r.background = 'linear-gradient('+ang+','+c1+','+c2+')';
+      } else if (st === '2d-flow') {
+        r.background = 'linear-gradient(180deg,'+c1+','+c2+')';
+      } else if (st === '3d') {
+        var t = (a.bubble_3d_intensity || 60) / 100;
+        /* 与 api.js _calc3D 同逻辑 (加强版) */
+        var _h = function(hex) {
+          if (!hex||hex.charAt(0)!=='#') return {h:0,s:0,l:50};
+          var rv=parseInt(hex.slice(1,3),16)/255, gv=parseInt(hex.slice(3,5),16)/255, bv=parseInt(hex.slice(5,7),16)/255;
+          var mx=Math.max(rv,gv,bv),mn=Math.min(rv,gv,bv),hh,ss,ll=(mx+mn)/2;
+          if(mx===mn){hh=ss=0}else{var dd=mx-mn;ss=ll>.5?dd/(2-mx-mn):dd/(mx+mn);if(mx===rv)hh=((gv-bv)/dd+(gv<bv?6:0))/6;else if(mx===gv)hh=((bv-rv)/dd+2)/6;else hh=((rv-gv)/dd+4)/6}
+          return{h:hh*360,s:ss*100,l:ll*100};
+        };
+        var _hs = function(h,s,l){return'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'};
+        var h1=_h(c1),h2=_h(c2);
+        /* 高光: 大幅提亮+降饱和 */
+        var hi=_hs(h1.h, Math.max(h1.s-20*t,0), Math.min(h1.l+35*t,97));
+        /* 暗部: 色相偏移+加饱和+压暗 */
+        var sh=_hs(h2.h+8, Math.min(h2.s+15*t,100), Math.max(h2.l-30*t,5));
+        /* 镜面 + 边缘光 + 主渐变 */
+        r.background = 'radial-gradient(ellipse 80% 50% at 25% 15%,rgba(255,255,255,'+(0.5*t)+') 0%,rgba(255,255,255,'+(0.1*t)+') 50%,transparent 72%),'
+          + 'linear-gradient(135deg,rgba(255,255,255,'+(0.25*t)+') 0%,transparent 40%,transparent 85%,rgba(0,0,0,'+(0.1*t)+') 100%),'
+          + 'linear-gradient(155deg,'+hi+' 0%,'+c1+' 40%,'+c2+' 75%,'+sh+' 100%)';
+        var avgL=(h1.l+h2.l)/2, bA=(avgL>70?.15:.1)*t;
+        r.border = '1px solid rgba(0,0,0,'+bA+')';
+        r.boxShadow = 'inset 0 '+(4*t)+'px '+(10*t)+'px rgba(255,255,255,'+(0.45*t)+'),'
+          + 'inset 0 -'+(4*t)+'px '+(12*t)+'px rgba(0,0,0,'+(0.18*t)+'),'
+          + 'inset '+(3*t)+'px 0 '+(6*t)+'px rgba(255,255,255,'+(0.15*t)+'),'
+          + 'inset -'+(2*t)+'px 0 '+(5*t)+'px rgba(0,0,0,'+(0.08*t)+'),'
+          + '0 '+(4*t)+'px '+(14*t)+'px rgba(0,0,0,'+(0.15*t)+'),'
+          + '0 '+(t)+'px '+(3*t)+'px rgba(0,0,0,'+(0.08*t)+')';
       }
-      return s;
+      return r;
     },
 
     joinChainById(id) {
