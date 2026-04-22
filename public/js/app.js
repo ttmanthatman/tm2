@@ -99,39 +99,25 @@ const App = {
     let _recordChunks = [];
     let _recordTimer = null;
     let _recordStart = 0;
-    let _cancelled = false;       /* 取消标志，onstop 检查此标志决定是否上传 */
-    let _actualMime = '';          /* MediaRecorder 实际使用的 MIME 类型 */
     const VOICE_MAX_SEC = 60;
-
-    /* MIME → 文件扩展名映射 */
-    var _mimeExtMap = {
-      'audio/webm': '.webm', 'audio/ogg': '.ogg',
-      'audio/mp4': '.m4a', 'audio/aac': '.m4a',
-      'audio/x-m4a': '.m4a', 'audio/mpeg': '.mp3'
-    };
 
     async function startRecording() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        /* 优先 Opus/webm 低码率; 回退到浏览器默认 (iOS Safari → mp4) */
+        /* 优先 Opus/webm 低码率; 回退到浏览器默认 */
         const mimeOpts = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
         let mime = '';
         for (const m of mimeOpts) { if (MediaRecorder.isTypeSupported(m)) { mime = m; break; } }
         const opts = { audioBitsPerSecond: 24000 };
         if (mime) opts.mimeType = mime;
         _mediaRecorder = new MediaRecorder(stream, opts);
-        /* 取 MediaRecorder 真正使用的 mimeType (去掉 codecs 参数) */
-        _actualMime = (_mediaRecorder.mimeType || mime || 'audio/webm').split(';')[0].trim();
         _recordChunks = [];
-        _cancelled = false;
         _mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) _recordChunks.push(e.data); };
         _mediaRecorder.onstop = function() {
           stream.getTracks().forEach(function(t) { t.stop(); });
-          /* —— 关键：检查 _cancelled 标志 —— */
-          if (_cancelled) { _recordChunks = []; return; }
           var dur = (Date.now() - _recordStart) / 1000;
           if (_recordChunks.length && dur >= 0.5) {
-            var blob = new Blob(_recordChunks, { type: _actualMime });
+            var blob = new Blob(_recordChunks, { type: mime || 'audio/webm' });
             uploadVoice(blob, Math.round(dur));
           }
           _recordChunks = [];
@@ -156,19 +142,17 @@ const App = {
     }
 
     function cancelRecording() {
-      _cancelled = true;           /* 先置标志，onstop 里据此跳过上传 */
       if (_recordTimer) { clearInterval(_recordTimer); _recordTimer = null; }
       if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
+        _recordChunks = []; /* 清空使 onstop 不上传 */
         _mediaRecorder.stop();
       }
       isRecording.value = false;
     }
 
     async function uploadVoice(blob, duration) {
-      /* 根据实际 MIME 选正确扩展名，保证服务端存储的扩展名与内容一致 */
-      var ext = _mimeExtMap[_actualMime] || '.webm';
       var fd = new FormData();
-      fd.append('voice', blob, 'voice' + ext);
+      fd.append('voice', blob, 'voice.webm');
       fd.append('channelId', store.currentChannelId);
       fd.append('duration', duration);
       try {
@@ -549,9 +533,8 @@ const App = {
                  :style="{background:modalData.appDraft.bg_color||'#f0f2f5'}"></div>
             <!-- 聊天气泡占位 -->
             <div class="appear-preview-chat">
-              <div class="appear-preview-bubble other">{{modalData.appDraft.chat_title||'TeamChat'}}</div>
-              <div class="appear-preview-bubble my"
-                   :style="{background:modalData.appDraft.send_color||'#667eea'}">你好 👋</div>
+              <div class="appear-preview-bubble other" :style="bubblePreview('other')">{{modalData.appDraft.chat_title||'TeamChat'}}</div>
+              <div class="appear-preview-bubble my" :style="bubblePreview('my')">你好 👋</div>
             </div>
             <!-- 输入栏占位 -->
             <div class="appear-preview-inputbar">
@@ -753,6 +736,80 @@ const App = {
           <label><input type="radio" value="fill"    v-model="modalData.appDraft.login_bg_video_mode"> 填充</label>
           <label><input type="radio" value="fit"     v-model="modalData.appDraft.login_bg_video_mode"> 适应</label>
           <label><input type="radio" value="stretch" v-model="modalData.appDraft.login_bg_video_mode"> 拉伸</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 气泡样式 ===== -->
+    <div class="section">
+      <h4>💬 气泡样式</h4>
+
+      <label class="field-label">效果模式</label>
+      <div class="radio-group">
+        <label><input type="radio" value="flat"       v-model="modalData.appDraft.bubble_style"> 扁平</label>
+        <label><input type="radio" value="2d-single"  v-model="modalData.appDraft.bubble_style"> 2D 渐变</label>
+        <label><input type="radio" value="2d-flow"    v-model="modalData.appDraft.bubble_style"> 2D 流式渐变</label>
+        <label><input type="radio" value="3d"         v-model="modalData.appDraft.bubble_style"> 3D 宫崎骏</label>
+      </div>
+      <p v-if="modalData.appDraft.bubble_style==='2d-single'" class="hint">每个气泡独立渐变，可调角度。</p>
+      <p v-if="modalData.appDraft.bubble_style==='2d-flow'" class="hint">颜色从上到下跨气泡渐变，整屏形成色彩过渡。</p>
+      <p v-if="modalData.appDraft.bubble_style==='3d'" class="hint">卡通立体风，宫崎骏式顶光 + 高光 + 软阴影。</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+        <!-- 我的气泡 -->
+        <div>
+          <label class="field-label">我的气泡 · 主色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color1"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_color1}}</span></div>
+        </div>
+        <div>
+          <label class="field-label">我的气泡 · 副色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color2"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_color2}}</span></div>
+        </div>
+        <div>
+          <label class="field-label">对方气泡 · 主色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color1"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_color1}}</span></div>
+        </div>
+        <div>
+          <label class="field-label">对方气泡 · 副色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color2"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_color2}}</span></div>
+        </div>
+        <div>
+          <label class="field-label">我的气泡 · 文字色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_text"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_text}}</span></div>
+        </div>
+        <div>
+          <label class="field-label">对方气泡 · 文字色</label>
+          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_text"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_text}}</span></div>
+        </div>
+      </div>
+
+      <div v-if="modalData.appDraft.bubble_style==='2d-single'" style="margin-top:12px">
+        <label class="field-label">渐变角度: {{modalData.appDraft.bubble_gradient_angle}}°</label>
+        <input type="range" min="0" max="360" step="5" v-model.number="modalData.appDraft.bubble_gradient_angle" style="width:100%">
+      </div>
+
+      <div v-if="modalData.appDraft.bubble_style==='3d'" style="margin-top:12px">
+        <label class="field-label">3D 强度: {{modalData.appDraft.bubble_3d_intensity}}%</label>
+        <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_intensity" style="width:100%">
+      </div>
+
+      <!-- 气泡效果实时小预览 -->
+      <div style="margin-top:14px;padding:14px;background:#f0f2f5;border-radius:12px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="width:28px;height:28px;border-radius:50%;background:#e8eeff;flex-shrink:0"></div>
+          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">大家好！这是对方的气泡效果</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse">
+          <div style="width:28px;height:28px;border-radius:50%;background:#667eea;flex-shrink:0"></div>
+          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">你好！这是我的气泡效果 🎨</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="width:28px;height:28px;border-radius:50%;background:#fce7f3;flex-shrink:0"></div>
+          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">看起来效果不错呢 ✨</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse">
+          <div style="width:28px;height:28px;border-radius:50%;background:#667eea;flex-shrink:0"></div>
+          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">太好了 👍</div>
         </div>
       </div>
     </div>
@@ -967,6 +1024,32 @@ const App = {
         case 'fill':
         default:        return { objectFit: 'cover',   backgroundSize: 'cover',    backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
       }
+    },
+
+    /* 外观预览: 气泡小样样式 */
+    bubblePreview(who) {
+      var a = (this.modalData && this.modalData.appDraft) || {};
+      var mode = a.bubble_style || 'flat';
+      var isMy = who === 'my';
+      var c1 = isMy ? (a.bubble_my_color1 || '#667eea') : (a.bubble_other_color1 || '#ffffff');
+      var c2 = isMy ? (a.bubble_my_color2 || '#764ba2') : (a.bubble_other_color2 || '#e8eeff');
+      var txt = isMy ? (a.bubble_my_text || '#ffffff') : (a.bubble_other_text || '#333333');
+      var angle = (parseInt(a.bubble_gradient_angle) || 135) + 'deg';
+      var s = { color: txt };
+      if (mode === 'flat') {
+        s.background = c1;
+      } else if (mode === '2d-single') {
+        s.background = 'linear-gradient(' + angle + ',' + c1 + ',' + c2 + ')';
+      } else if (mode === '2d-flow') {
+        s.background = 'linear-gradient(180deg,' + c1 + ',' + c2 + ')';
+      } else if (mode === '3d') {
+        var t = (parseInt(a.bubble_3d_intensity) || 60) / 100;
+        s.background = 'linear-gradient(160deg,' + c1 + ' 0%,' + c2 + ' 100%)';
+        s.boxShadow = 'inset 0 ' + (2*t) + 'px ' + (4*t) + 'px rgba(255,255,255,' + (.35*t) + '), inset 0 -' + (2*t) + 'px ' + (6*t) + 'px rgba(0,0,0,' + (.12*t) + '), 0 ' + (2*t) + 'px ' + (6*t) + 'px rgba(0,0,0,' + (.08*t) + ')';
+        s.borderTop = '.5px solid rgba(255,255,255,' + (.4*t) + ')';
+        s.borderBottom = '.5px solid rgba(0,0,0,' + (.08*t) + ')';
+      }
+      return s;
     },
 
     joinChainById(id) {

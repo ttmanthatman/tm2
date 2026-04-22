@@ -120,7 +120,17 @@ const AdminMethods = {
       login_bg_video_mode:  fixMode(a.login_bg_video_mode),
 
       parallax_enabled:  a.parallax_enabled === '1',
-      parallax_strength: parseInt(a.parallax_strength) || 30
+      parallax_strength: parseInt(a.parallax_strength) || 30,
+
+      bubble_style:          a.bubble_style          || 'flat',
+      bubble_my_color1:      a.bubble_my_color1      || '#667eea',
+      bubble_my_color2:      a.bubble_my_color2      || '#764ba2',
+      bubble_other_color1:   a.bubble_other_color1   || '#ffffff',
+      bubble_other_color2:   a.bubble_other_color2   || '#e8eeff',
+      bubble_my_text:        a.bubble_my_text         || '#ffffff',
+      bubble_other_text:     a.bubble_other_text      || '#333333',
+      bubble_gradient_angle: parseInt(a.bubble_gradient_angle) || 135,
+      bubble_3d_intensity:   parseInt(a.bubble_3d_intensity)   || 60
     };
     this.modalData.gyroState = this._gyroInitState();
     this.currentModal = 'appearance';
@@ -239,7 +249,17 @@ const AdminMethods = {
       login_bg_video_mode:  a.login_bg_video_mode,
 
       parallax_enabled:  a.parallax_enabled ? '1' : '0',
-      parallax_strength: String(a.parallax_strength || 30)
+      parallax_strength: String(a.parallax_strength || 30),
+
+      bubble_style:          a.bubble_style || 'flat',
+      bubble_my_color1:      a.bubble_my_color1,
+      bubble_my_color2:      a.bubble_my_color2,
+      bubble_other_color1:   a.bubble_other_color1,
+      bubble_other_color2:   a.bubble_other_color2,
+      bubble_my_text:        a.bubble_my_text,
+      bubble_other_text:     a.bubble_other_text,
+      bubble_gradient_angle: String(a.bubble_gradient_angle || 135),
+      bubble_3d_intensity:   String(a.bubble_3d_intensity || 60)
     };
     try {
       const r = await fetch(API + '/api/settings/appearance', {

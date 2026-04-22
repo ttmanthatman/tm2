@@ -13,7 +13,11 @@ const APPEARANCE_KEYS = [
   "login_title","chat_title","send_text","send_color",
   "bg_type","bg_color","bg_image","bg_mode","bg_video","bg_video_url","bg_video_mode",
   "login_bg_type","login_bg_color1","login_bg_color2","login_bg_image",
-  "login_bg_mode","login_bg_video","login_bg_video_url","login_bg_video_mode"
+  "login_bg_mode","login_bg_video","login_bg_video_url","login_bg_video_mode",
+  "bubble_style","bubble_my_color1","bubble_my_color2",
+  "bubble_other_color1","bubble_other_color2",
+  "bubble_my_text","bubble_other_text",
+  "bubble_gradient_angle","bubble_3d_intensity"
 ];
 
 /* ===== 通知 ===== */
