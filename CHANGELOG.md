@@ -4,25 +4,6 @@
 
 ## [Unreleased]
 
-## [v0.4.4] - 玻璃气泡模式
-
-### 新增
-- 第 5 种气泡模式: glass (玻璃拟真), 与 flat / 2d-single / 2d-flow / 3d 并列
-  * 顶部反射高光 (::before) + 底部散焦光 (::after) + SVG 尾部
-  * 3D 透视倾斜 + 内外阴影 + 半透明毛玻璃 + 边框 + 饱和度
-- 右下角悬浮「🔮」按钮 → 抽屉式调节面板 (Shadow DOM 隔离)
-- 左右气泡独立 32+ 参数调节 (高光偏移/形状/阴影/内发光/配色)
-- 参数写入 :root CSS 变量 + localStorage 持久化, 刷新不丢
-- 与现有陀螺仪引擎 (bubble-engine) / @mention 彩虹边 共存不冲突
-- 启用/关闭总开关 (给 body 加/去 bubble-glass 类)
-- 导出 CSS (可贴回 bubble-glass.css 做默认值) / 导出 JSON / 导入 JSON / 重置
-
-### 新增文件
-- public/css/bubble-glass.css (骨架样式 + CSS 变量占位)
-- public/js/bubble-tuner.js (浮动面板 + 变量写入 + SVG 尾部管理)
-
-### 修改文件
-- public/index.html (加载新 CSS 和 JS)
 ## [v0.4.3]
 - 新增: 管理员可在「外观定制 → 💬 气泡样式」中自定义气泡颜色和效果
 - 新增: 扁平 (Flat) — 纯色气泡，可自定义我方/对方颜色
