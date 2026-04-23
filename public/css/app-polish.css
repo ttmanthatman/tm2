@@ -286,27 +286,11 @@
   overflow: hidden;
 }
 
-/* ===== 14. 通知栏展开/收起过渡 ===== */
-.notice-expanded {
-  animation: slideDown .2s ease;
-}
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-  to {
-    opacity: 1;
-    max-height: 200px;
-  }
-}
+/* ===== 14. 通知栏展开/收起 (扁平: 无入场动画) ===== */
+/* .notice-expanded animation removed */
 
-/* ===== 15. 回复条入场 ===== */
-.reply-bar {
-  animation: slideDown .15s ease;
-}
+/* ===== 15. 回复条入场 (扁平: 无入场动画) ===== */
+/* .reply-bar animation removed */
 
 /* ===== 16. 被踢出浮层优化 ===== */
 .kicked-overlay {
@@ -318,21 +302,16 @@
   animation: modalSlideUp .3s cubic-bezier(.32,.72,.37,1.12);
 }
 
-/* ===== 17. 聊天header下方的精致分割线 ===== */
-.chat-header {
-  box-shadow: 0 1px 0 rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.03);
-}
+/* ===== 17. 聊天header下方的分割线 (扁平: 保留 layout.css 里的 1px 阴影) ===== */
+/* (intentionally removed) */
 
-/* ===== 18. 输入区上方精致分割 ===== */
-.input-area {
-  box-shadow: 0 -1px 0 rgba(0,0,0,.04), 0 -3px 10px rgba(0,0,0,.02);
-}
+/* ===== 18. 输入区上方分割 (扁平: 保留 chat.css 里的 1px 阴影) ===== */
+/* (intentionally removed) */
 
-/* ===== 19. 消息日期分隔线 (如果有的话) ===== */
+/* ===== 19. 消息日期分隔线 (扁平: 无入场动画) ===== */
 .date-divider {
   -webkit-user-select: none;
   user-select: none;
-  animation: fadeIn .3s ease;
 }
 
 /* ===== 20. 发送按钮状态增强 ===== */
