@@ -88,6 +88,8 @@ const migrations = [
   "ALTER TABLE messages ADD COLUMN channel_id INTEGER DEFAULT 1",
   "ALTER TABLE messages ADD COLUMN duration REAL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN is_ai INTEGER DEFAULT 0",
+  "ALTER TABLE ai_logs ADD COLUMN cache_hit_tokens INTEGER DEFAULT 0",
+  "ALTER TABLE ai_logs ADD COLUMN cache_miss_tokens INTEGER DEFAULT 0",
 ];
 migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

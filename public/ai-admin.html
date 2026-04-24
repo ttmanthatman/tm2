@@ -378,13 +378,22 @@ async function showLogs(id) {
     const cont = document.getElementById('logs-' + id);
     if (!d.success || !d.logs.length) { cont.innerHTML = '<div class="hint" style="margin-top:10px">暂无日志</div>'; return; }
     const html = ['<div class="logs" style="margin-top:10px">'];
-    for (const l of d.logs) {
+   for (const l of d.logs) {
       const cls = l.error ? 'l err' : 'l';
+      const hit = l.cache_hit_tokens || 0;
+      const miss = l.cache_miss_tokens || 0;
+      let tokStr;
+      if (hit > 0 || miss > 0) {
+        const pct = hit + miss > 0 ? Math.round(hit * 100 / (hit + miss)) : 0;
+        tokStr = 'in=' + (l.input_tokens || 0) + ' (hit=' + hit + ' miss=' + miss + ' ' + pct + '%) out=' + (l.output_tokens || 0);
+      } else {
+        tokStr = 'in=' + (l.input_tokens || 0) + ' out=' + (l.output_tokens || 0);
+      }
       const parts = [
         '#' + l.id,
         l.created_at,
         l.trigger_type || '-',
-        'in=' + (l.input_tokens || 0) + ' out=' + (l.output_tokens || 0),
+        tokStr,
         l.latency_ms + 'ms',
         l.error ? ('ERR: ' + l.error) : ('msg=' + (l.output_msg_id || '-'))
       ];
