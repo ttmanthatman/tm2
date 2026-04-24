@@ -2,6 +2,12 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [v0.5.2] - 2026-04-24
+### 修复
+- 访问 /ai-admin (无 .html 后缀) 错误地回退到主聊天页的问题
+  原因: express.static 默认不处理扩展名补全,请求被 SPA fallback 拦截到 index.html
+  改法: express.static 添加 { extensions: ['html'] } 配置
+
 ## [v0.5.1] - 2026-04-24
 ### 改进
 - DeepSeek API Key 改为管理页配置（存 settings 表），管理员直接在 /ai-admin.html 粘贴保存，不再需要 SSH 到服务器建 .deepseek_key 文件
