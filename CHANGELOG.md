@@ -1,6 +1,25 @@
 # Changelog
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
+## [v0.5.5] - 2026-04-24
+
+### 修复
+- **DeepSeek 缓存永不命中**: buildContext 之前用"最新 N 条"滑动窗口, context[0] 随新消息持续变化, 缓存从第 0 条就 miss. 改用"从 window_start 开始往后取", prefix 稳定增长, 可层层命中
+- 新角色初始 window_start = 当前最新 msg.id + 1 (不背历史包袱)
+- 超过 maxCtx × 1.5 时自动前推 window_start (触发 1 次 rebuild, 之后继续命中)
+
+### 改进
+- 成员面板改显示全员 (人类 + AI), 按昵称排序
+- AI 名字前带蓝色 `[AI]` 徽章
+- AI 按 schedule 判定在线: 绿点=在线, 灰点=离线
+- `/api/users/basic` 返回 `is_ai` + `ai_online`
+- AI 增删改推送 `usersChanged` 事件, 每分钟推 `aiStatusTick`
+- 前端收到事件自动重新加载 `allUsers`, 修复"登录后创建的 AI 不出现在 @ 补全"的 bug
+- 管理页加"重置对话"按钮 (让 AI 忘记历史 + 强制重建缓存)
+- `ai_characters` 新增 `context_window_start` 字段
+
+### 运维
+- bump `public/sw.js` CACHE_NAME: `teamchat-v9` → `teamchat-v10` (强制清老缓存)
 
 ## [v0.5.4] - 2026-04-24
 ### 调试
