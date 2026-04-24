@@ -145,11 +145,11 @@ function checkAndResetBudget(charId, config) {
 }
 
 /* ===== 记日志 ===== */
-function logReply({ charId, channelId, trigger, inputMsgId, outputMsgId, inTok, outTok, latency, error }) {
+function logReply({ charId, channelId, trigger, inputMsgId, outputMsgId, inTok, outTok, cacheHit, cacheMiss, latency, error }) {
   try {
     db.prepare(
-      "INSERT INTO ai_logs (character_id, channel_id, trigger_type, input_msg_id, output_msg_id, input_tokens, output_tokens, latency_ms, error) VALUES (?,?,?,?,?,?,?,?,?)"
-    ).run(charId, channelId || null, trigger || null, inputMsgId || null, outputMsgId || null, inTok || 0, outTok || 0, latency || 0, error || null);
+      "INSERT INTO ai_logs (character_id, channel_id, trigger_type, input_msg_id, output_msg_id, input_tokens, output_tokens, cache_hit_tokens, cache_miss_tokens, latency_ms, error) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+    ).run(charId, channelId || null, trigger || null, inputMsgId || null, outputMsgId || null, inTok || 0, outTok || 0, cacheHit || 0, cacheMiss || 0, latency || 0, error || null);
   } catch(e) { console.error("[AI logReply]", e.message); }
 }
 
@@ -182,7 +182,7 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
 
   const messages = [{ role: "system", content: systemPrompt }, ...contextMsgs];
 
-  let content = "", inTok = 0, outTok = 0, err = null;
+  let content = "", inTok = 0, outTok = 0, cacheHit = 0, cacheMiss = 0, err = null;
   try {
     const res = await ds.chatCompletion({
       apiKey,
@@ -195,6 +195,8 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
     content = (res.content || "").trim();
     inTok = res.inputTokens;
     outTok = res.outputTokens;
+    cacheHit = res.cacheHitTokens || 0;
+    cacheMiss = res.cacheMissTokens || 0;
   } catch (e) {
     err = (e && e.message) || String(e);
   }
@@ -202,7 +204,7 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
   const latency = Date.now() - startTime;
 
   if (err || !content) {
-    logReply({ charId: character.id, channelId, trigger: triggerType, inputMsgId: triggerMsgId, inTok, outTok, latency, error: err || "empty_response" });
+    logReply({ charId: character.id, channelId, trigger: triggerType, inputMsgId: triggerMsgId, inTok, outTok, cacheHit, cacheMiss, latency, error: err || "empty_response" });
     return;
   }
 
@@ -225,11 +227,17 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
     "INSERT INTO messages (user_id, username, content, channel_id, created_at) VALUES (?,?,?,?,?)"
   ).run(aiUser.id, aiUser.username, content, channelId, nowUtc);
 
+  /* 预算累计时: 命中缓存的 input 部分按 1/10 折算 (反映真实花费) */
+  const effectiveInTok = cacheMiss + Math.ceil(cacheHit / 10);
   db.prepare("UPDATE ai_characters SET tokens_used_today = tokens_used_today + ? WHERE id=?")
-    .run(inTok + outTok, character.id);
+    .run(effectiveInTok + outTok, character.id);
 
-  logReply({ charId: character.id, channelId, trigger: triggerType, inputMsgId: triggerMsgId, outputMsgId: result.lastInsertRowid, inTok, outTok, latency });
-
+  logReply({
+    charId: character.id, channelId, trigger: triggerType,
+    inputMsgId: triggerMsgId, outputMsgId: result.lastInsertRowid,
+    inTok, outTok, cacheHit, cacheMiss, latency
+  });
+  
   const emitMsg = {
     id: result.lastInsertRowid,
     username: aiUser.username,
