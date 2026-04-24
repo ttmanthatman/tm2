@@ -1,8 +1,8 @@
 /* ===== Responsive Breakpoints ===== */
 
-/* 平板 - 隐藏成员面板 */
-@media(max-width:1024px){
-  .members-panel{display:none}
+/* 平板 - 即使 open 也隐藏成员面板 (空间不够) */
+@media(max-width:1024px) and (min-width:769px){
+  .members-panel,.members-panel.open{display:none}
 }
 
 /* 手机 - 侧边栏变抽屉 */
@@ -11,8 +11,48 @@
   .sidebar.open{transform:translateX(0)}
   .sidebar-overlay.show{opacity:1;pointer-events:auto}
   .chat-header-left .menu-btn{display:block}
-  .msg{max-width:88%}
+  .msg{max-width:92%}
   .input-area .send-btn{padding:0 12px}
+
+  /* ===== 成员面板变右侧抽屉 ===== */
+  .members-panel{
+    display:flex;position:fixed;top:0;right:0;height:100dvh;width:78%;max-width:300px;z-index:101;
+    border-left:none;box-shadow:-4px 0 24px rgba(0,0,0,.14);
+    transform:translateX(100%);transition:transform .28s cubic-bezier(.32,.72,.37,1)
+  }
+  .members-panel.open{transform:translateX(0)}
+  .members-overlay{display:block}
+  .members-overlay.show{opacity:1;pointer-events:auto}
+  .members-close-btn{display:block}
+  /* iOS 安全区避让 */
+  .members-panel-header{padding-top:calc(14px + env(safe-area-inset-top))}
+  .members-list{padding-bottom:env(safe-area-inset-bottom)}
+
+  /* ===== 手机端紧凑间距 (释放更多消息空间) ===== */
+  .chat-header{padding:6px 12px}
+  .chat-header-left h3{font-size:15px}
+  .chat-header-left .ch-desc{font-size:11px;line-height:1.2}
+  .chat-header-right{gap:4px}
+  .chat-header-right .online-tag{font-size:11px;padding:2px 6px}
+  .chat-header-right .btn-icon{font-size:17px;padding:3px}
+
+  .messages{padding:10px 10px;gap:4px}
+  .msg{gap:8px;padding:1px 0}
+  .msg-avatar{width:30px;height:30px}
+  .msg-sender{font-size:11px;margin-bottom:1px}
+  .msg-bubble{padding:7px 11px;border-radius:14px}
+  .msg-bubble::before{top:8px}
+  .msg-time{font-size:10px;margin-top:2px}
+
+  .input-area{padding:6px 8px;gap:6px}
+  .input-area textarea{min-height:34px;font-size:14px;padding:7px 11px}
+  .input-area .voice-btn,
+  .input-area .emoji-btn,
+  .input-area .plus-btn{width:32px;height:32px}
+  .input-area .send-btn{height:34px;min-width:34px}
+
+  .sidebar-header{padding:12px 14px}
+  .sidebar-footer{padding:10px 14px}
 }
 
 /* 桌面 - 更大的图片 */
