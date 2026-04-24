@@ -323,10 +323,18 @@
 }
 
 /* ===== 21. 移动端：侧边栏打开时 body 不滚动 ===== */
+/* body 已全局 position:fixed，此 class 仅做语义保留 */
 body.sidebar-locked {
   overflow: hidden;
-  position: fixed;
-  width: 100%;
+}
+
+/* ===== 21b. 聊天区域 touch-action 锁定 ===== */
+/* 只允许纵向滑动，防止双击/捏合触发 viewport 偏移 */
+.messages-wrapper,
+.messages,
+.main-area {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 /* ===== 22. 骨架屏闪光效果 (给加载状态用) ===== */

@@ -20,9 +20,8 @@
 ### 给方案前必做
 1. **先读仓库当前真实代码**。本文件的模块索引和版本号可能滞后，不要基于它推测代码状态。每次任务开始都 clone / fetch 一次最新 main。
 2. **确认版本号**。`git tag -l` 看仓库最新 tag，下一版 = 最新 tag + 1。不要依赖本文件的"当前版本"字段。
-3. **对 mobile / iOS 相关改动要极度谨慎**。iOS Safari 有一堆反直觉行为 (visualViewport / 100dvh / position:fixed / touch-action 之间的交互都不按字面含义工作)。若不能真机验证，只做最小改动，并提前说明"这个改法可能坏哪里"，给我决策权，不要盲目自信。
-4. **失败时先问症状，再改代码**。上一版坏了的话先要截图、Safari 还是 PWA、是否开键盘，确认根因再动手。每硬猜一次就可能再坏一版。
-5. **不要用 ask_user_input_v0 要用户贴代码**。Claude 能直接从 github 读任何文件，先用工具，实在读不到再问。
+3. **失败时先问症状，再改代码**。上一版坏了的话先要截图、Safari 还是 PWA、是否开键盘，确认根因再动手。每硬猜一次就可能再坏一版。
+
 
 ### 输出要求
 - 每次输出前先给**变更摘要** (一行 commit message + CHANGELOG 条目草稿)
@@ -175,19 +174,6 @@ SSH 到 VPS → 备份数据库 → git fetch → 切到指定 tag → npm insta
 
 ## 血的教训 (给未来的 Claude)
 
-这些坑已经踩过了，下次别再踩。
-
-### 1. 不要在 body 上加 `position:fixed` 来"锁住"视口
-iOS 聚焦输入框时仍会推 layout viewport，固定 body 会被一起顶上去，chat-header 和 messages 会跑出屏幕顶部。**正确做法**：让 body 的 `height` 跟着 `visualViewport.height` 走 (用 `--app-vh` 变量同步)，body 本身维持普通文档流。只要 body 高度等于可见区，iOS 就不再做聚焦滚动补偿。
-
-### 2. `touch-action: manipulation` 不禁止双指缩放
-它只禁止**双击缩放**。真正禁止双指缩放的是 `touch-action: pan-x pan-y` 或 `touch-action: none`。当前本项目是靠 `#app { touch-action: pan-y }` 覆盖整个视口来锁缩放的 —— 任何让 `#app` 不能完全覆盖视口的改动 (父容器变小、position 改了、height 不对) 都会漏出裸 html 区域，让双指缩放生效。改布局时务必验证 `#app` 仍然铺满。
-
-### 3. `100dvh` 不考虑软键盘
-CSS 规范里 `dvh` 专指浏览器 UI 的动态高度，**不包括软键盘**。iOS 上键盘弹起后 100dvh 不会缩小，会遮住输入栏。必须用 `visualViewport.height` 作为高度源，容器主动缩 —— 当前 base.css / layout.css / responsive.css 里相应容器都是 `height: var(--app-vh, 100dvh)`，JS 在 visualViewport 变化时同步 `--app-vh`。
-
-### 4. 不要随便 `scrollTo(0, 0)` 兜底
-老代码在 `visualViewport.resize` 时 `scrollTo(0,0)`，本意是兜底 iOS 聚焦滚动，但副作用是 Safari 底栏切换时也触发，造成"双击空白内容上移"的误会。只要容器高度跟可见区走，不需要这种兜底；加了反而出问题。
 
 ### 5. 版本号是仓库里的 tag 说了算，不是本文件
 本文件的「当前版本」字段每次发版都可能忘记更新。下次决定版本号时，**先 `git tag -l`**，不要读这里。本文件字段仅供参考。
