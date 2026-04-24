@@ -1016,16 +1016,36 @@ const App = {
   }
 };
 
-/* ===== iOS PWA keyboard fix ===== */
+/* ===== Viewport height sync (iOS Safari / PWA) =====
+   用 visualViewport 精确追踪当前可见高度, 写入 CSS 变量 --app-vh,
+   所有原本写 100dvh 的容器改为 var(--app-vh, 100dvh), 以修复:
+   1) iOS Safari 上 100dvh 不随浏览器 UI 展开/收起回弹, 输入栏下方出现大片空白;
+   2) 双击空白触发 Safari 底栏切换时, 容器高度未更新导致整体上移;
+   3) 键盘收起后 html 残留的滚动偏移. */
 (function() {
-  if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) return;
-  document.addEventListener('focusout', function(e) { setTimeout(function() { window.scrollTo(0, 0); }, 100); });
-  if (window.visualViewport) {
-    var lh = window.visualViewport.height;
-    window.visualViewport.addEventListener('resize', function() {
-      var nh = window.visualViewport.height;
-      if (nh > lh) { setTimeout(function() { window.scrollTo(0, 0); }, 50); }
-      lh = nh;
+  var root = document.documentElement;
+  var vv = window.visualViewport;
+
+  function apply() {
+    var h = (vv && vv.height) || window.innerHeight;
+    root.style.setProperty('--app-vh', h + 'px');
+  }
+
+  apply();
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', function() { setTimeout(apply, 120); });
+  if (vv) {
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+  }
+
+  // iOS 聚焦输入框后, html 可能被系统滚走一截; 失焦后拉回并重算高度
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    document.addEventListener('focusout', function() {
+      setTimeout(function() {
+        window.scrollTo(0, 0);
+        apply();
+      }, 120);
     });
   }
 })();

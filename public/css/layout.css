@@ -1,5 +1,5 @@
 /* ===== App Layout (三栏) ===== */
-.app-layout{display:flex;height:100dvh;overflow:hidden}
+.app-layout{display:flex;height:var(--app-vh,100dvh);overflow:hidden}
 
 /* ===== Sidebar - 频道列表 ===== */
 .sidebar{width:260px;background:#1e1f2e;color:#fff;display:flex;flex-direction:column;flex-shrink:0;transition:transform .3s ease;z-index:100}
