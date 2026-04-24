@@ -1018,10 +1018,11 @@ const App = {
 
 /* ===== Viewport height sync (iOS Safari / PWA) =====
    用 visualViewport 精确追踪当前可见高度, 写入 CSS 变量 --app-vh,
-   所有原本写 100dvh 的容器改为 var(--app-vh, 100dvh), 以修复:
-   1) iOS Safari 上 100dvh 不随浏览器 UI 展开/收起回弹, 输入栏下方出现大片空白;
-   2) 双击空白触发 Safari 底栏切换时, 容器高度未更新导致整体上移;
-   3) 键盘收起后 html 残留的滚动偏移. */
+   让 body / #app / .app-layout 的高度跟随软键盘/浏览器 UI 实时回弹,
+   避免 iOS 上 100dvh 不考虑键盘产生的底部留白。
+   故意不做任何 scrollTo / focusout 干预 —— 上一版因此踩坑:
+   只要 body 跟可见区等高, iOS 就不会再去推 layout viewport, 
+   不需要额外补偿。 */
 (function() {
   var root = document.documentElement;
   var vv = window.visualViewport;
@@ -1033,20 +1034,9 @@ const App = {
 
   apply();
   window.addEventListener('resize', apply);
-  window.addEventListener('orientationchange', function() { setTimeout(apply, 120); });
+  window.addEventListener('orientationchange', function() { setTimeout(apply, 150); });
   if (vv) {
     vv.addEventListener('resize', apply);
-    vv.addEventListener('scroll', apply);
-  }
-
-  // iOS 聚焦输入框后, html 可能被系统滚走一截; 失焦后拉回并重算高度
-  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-    document.addEventListener('focusout', function() {
-      setTimeout(function() {
-        window.scrollTo(0, 0);
-        apply();
-      }, 120);
-    });
   }
 })();
 

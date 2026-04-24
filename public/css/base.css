@@ -1,30 +1,6 @@
 /* ===== TeamChat Base Styles ===== */
 *{margin:0;padding:0;box-sizing:border-box}
-
-/* html/body 钉死到视口, 彻底禁止原生滚动/回弹 ----------------------------- */
-html{
-  touch-action:manipulation;
-  -webkit-text-size-adjust:100%;
-  -ms-text-size-adjust:100%;
-  height:100%;
-  overflow:hidden;
-}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  background:#f0f2f5;
-  overflow:hidden;
-  overscroll-behavior:none;
-  position:fixed;
-  top:0;left:0;right:0;
-  width:100%;
-  height:var(--app-vh,100dvh);
-}
-
-#app{
-  height:var(--app-vh,100dvh);
-  display:flex;
-  flex-direction:column;
-  touch-action:pan-y;
-}
-
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;height:var(--app-vh,100dvh);overflow:hidden;overscroll-behavior:none}
+#app{height:var(--app-vh,100dvh);display:flex;flex-direction:column;touch-action:pan-y}
 .hidden{display:none!important}
