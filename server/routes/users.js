@@ -9,9 +9,27 @@ const { authMiddleware, adminMiddleware } = require("../middleware");
 
 const router = express.Router();
 
-/* ===== 全员基础信息 (供 @提及) ===== */
+/* ===== 全员基础信息 (供 @提及 & 成员列表) =====
+ * v0.5.6: 对 AI 角色附加 ai_online 字段 (基于 schedule) */
 router.get("/users/basic", authMiddleware, (req, res) => {
-  res.json(db.prepare("SELECT username,nickname,avatar,is_ai FROM users").all());
+  const users = db.prepare("SELECT id,username,nickname,avatar,is_ai FROM users").all();
+  try {
+    const { isOnline } = require("../ai/character");
+    const aiRows = db.prepare("SELECT user_id, config_json, enabled FROM ai_characters").all();
+    const aiMap = new Map();
+    for (const r of aiRows) {
+      let config = {};
+      try { config = JSON.parse(r.config_json); } catch(e) {}
+      aiMap.set(r.user_id, { enabled: !!r.enabled, schedule: config.schedule });
+    }
+    for (const u of users) {
+      if (u.is_ai) {
+        const info = aiMap.get(u.id);
+        u.ai_online = info && info.enabled ? !!isOnline(info.schedule) : false;
+      }
+    }
+  } catch(e) { /* AI 模块不可用时忽略 */ }
+  res.json(users);
 });
 
 /* ===== 用户列表 ===== */

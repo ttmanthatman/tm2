@@ -298,6 +298,7 @@ function renderCard(c) {
       '<button class="ghost" onclick="uploadAvatar(' + c.id + ')">换头像</button>' +
       '<input type="file" id="av-' + c.id + '" accept="image/*" style="display:none" onchange="doUploadAvatar(' + c.id + ', event)">' +
       '<button class="ghost" onclick="testChar(' + c.id + ')">测试发言</button>' +
+      '<button class="ghost" onclick="resetContext(' + c.id + ')">重置对话</button>' +
       '<button class="ghost" onclick="showLogs(' + c.id + ')">查看日志</button>' +
       '<button class="sec" onclick="exportChar(' + c.id + ')">导出 JSON</button>' +
       '<button class="danger" style="margin-left:auto" onclick="deleteChar(' + c.id + ')">删除</button>' +
@@ -400,6 +401,18 @@ async function testChar(id) {
     const d = await r.json();
     if (!d.success) return alertMsg('测试失败：' + (d.message || ''), 'err');
     alertMsg('已触发，请去聊天室看效果', 'ok');
+  } catch(e) { alertMsg(e.message, 'err'); }
+}
+
+async function resetContext(id) {
+  if (!confirm('重置对话上下文? AI 会"忘记"之前所有聊天, 从零开始. 这会让缓存重建一次 (1 次 miss 后恢复命中).')) return;
+  try {
+    const r = await fetch(API + '/api/ai/characters/' + id + '/reset-context', {
+      method: 'POST', headers: authH()
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('重置失败: ' + (d.message || ''), 'err');
+    alertMsg('已重置, window_start=' + d.window_start, 'ok');
   } catch(e) { alertMsg(e.message, 'err'); }
 }
 

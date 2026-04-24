@@ -2,6 +2,7 @@
  * TeamChat Socket.IO 处理模块
  * 实时消息、在线状态、接龙
  * v0.5.0: 消息持久化后调用 AI trigger 评估器
+ * v0.5.6: 每分钟广播 aiStatusTick, 让前端更新 AI 在线状态
  */
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("./config");
@@ -189,6 +190,14 @@ function setupSocket(io) {
       broadcastOnlineUsers(io);
     });
   });
+
+  /* v0.5.6: 每分钟广播一次 "ai 在线状态可能变化",
+   * 让前端重新拉 /api/users/basic 更新 AI 角色的在线徽标. */
+  setInterval(() => {
+    try {
+      io.emit("aiStatusTick");
+    } catch(e) {}
+  }, 60 * 1000);
 }
 
 module.exports = { setupSocket, onlineUsers, userSocketMap };

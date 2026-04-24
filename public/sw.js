@@ -1,4 +1,4 @@
-var CACHE_NAME = "teamchat-v9";
+var CACHE_NAME = "teamchat-v10";
 var OFFLINE_URLS = ["/", "/index.html", "/images/icon-192.png", "/images/icon-96.png", "/images/default-avatar.svg"];
 self.addEventListener("install", function(e) { e.waitUntil(caches.open(CACHE_NAME).then(function(c) { return c.addAll(OFFLINE_URLS); }).then(function() { return self.skipWaiting(); })); });
 self.addEventListener("activate", function(e) { e.waitUntil(caches.keys().then(function(n) { return Promise.all(n.filter(function(k) { return k !== CACHE_NAME; }).map(function(k) { return caches.delete(k); })); }).then(function() { return self.clients.claim(); })); });

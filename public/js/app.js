@@ -197,6 +197,23 @@ const App = {
     const currentMessages = computed(() => { const ch = msgStore[store.currentChannelId]; return ch ? ch.msgs : []; });
     const onlineSet = computed(() => new Set(store.onlineUsers.map(u => u.username)));
 
+    /* v0.5.6: 统一的成员列表 (人类 + AI), 按昵称排序 */
+    function isUserOnline(u) {
+      if (!u) return false;
+      if (u.is_ai) return !!u.ai_online;
+      return onlineSet.value.has(u.username);
+    }
+    const sortedMembers = computed(() => {
+      const list = (store.allUsers || []).slice();
+      list.sort((a, b) => {
+        const na = (a.nickname || a.username || '').toLowerCase();
+        const nb = (b.nickname || b.username || '').toLowerCase();
+        return na.localeCompare(nb, 'zh-CN');
+      });
+      return list;
+    });
+    const onlineCount = computed(() => sortedMembers.value.filter(isUserOnline).length);
+
     /* ===== Init ===== */
     onMounted(async () => {
       initSW(); /* 不 await — SW 注册不应阻塞 UI */
@@ -339,6 +356,7 @@ const App = {
       replyTo, noticeExpanded, msgInput, msgListKey,
       loginUser, loginPass, regUser, regNick, regPass, regPass2, chainTopic, chainDesc,
       currentChannel, currentMessages, onlineSet, ctxMenu,
+      sortedMembers, onlineCount, isUserOnline,
       doLogin, doRegister, logout, sendMsg, handleKey, insertNewline, autoGrow, onMsgInput,
       uploadFile, sendChain, joinChain, parseChain, loadMore, showCtx, setReply,
       switchChannel: async (id) => { sidebarOpen.value = false; await switchChannel(id); },
@@ -484,13 +502,18 @@ const App = {
   <div class="members-overlay" :class="{show:showMembers}" @click="closeMembersPanel()"></div>
   <div class="members-panel" :class="{open:showMembers}">
     <div class="members-panel-header">
-      <span>在线成员 ({{store.onlineUsers.length}})</span>
+      <span>成员 ({{sortedMembers.length}} · {{onlineCount}}在线)</span>
       <button class="members-close-btn" title="关闭" @click="closeMembersPanel()">✕</button>
     </div>
     <div class="members-hint">👆 点击成员可在消息中 @ 他（支持多选）</div>
     <div class="members-list">
-      <div v-for="u in store.onlineUsers" :key="u.username" class="member-item" @click="onMemberClick(u)">
-        <img :src="avatarUrl(u.avatar)" alt=""><span class="member-name">{{u.nickname||u.username}}</span><span class="online-dot on"></span>
+      <div v-for="u in sortedMembers" :key="u.username" class="member-item" @click="onMemberClick(u)">
+        <img :src="avatarUrl(u.avatar)" alt="">
+        <span class="member-name">
+          <span v-if="u.is_ai" class="ai-tag">[AI]</span>
+          {{u.nickname||u.username}}
+        </span>
+        <span class="online-dot" :class="{on: isUserOnline(u)}"></span>
       </div>
     </div>
   </div>
