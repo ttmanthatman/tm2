@@ -32,7 +32,7 @@ app.get("/manifest.json", (req, res) => {
   res.setHeader("Content-Type", "application/manifest+json");
   res.sendFile(path.join(__dirname, "..", "public", "manifest.json"));
 });
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(path.join(__dirname, "..", "public"), { extensions: ["html"] }));
 app.use("/uploads", express.static(UPLOAD_DIR));
 app.use("/avatars", express.static(AVATAR_DIR));
 app.use("/backgrounds", express.static(BG_DIR));
