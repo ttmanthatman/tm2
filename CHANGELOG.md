@@ -1,6 +1,10 @@
 # Changelog
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
+
+## [v0.5.6]
+- fix: @提及补全列表上限从 20 提高到 50，按昵称排序，AI 角色不再被截断
+
 ## [v0.5.5] - 2026-04-24
 
 ### 修复
