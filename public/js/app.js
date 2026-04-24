@@ -12,7 +12,8 @@ const App = {
     const loginErr = ref('');
     const showReg = ref(false);
     const sidebarOpen = ref(false);
-    const showMembers = ref(true);
+    /* 桌面默认展开右栏，手机默认收起（点击 👥 才弹抽屉） */
+    const showMembers = ref(typeof window !== 'undefined' && window.innerWidth >= 1024);
     const currentModal = ref('');
     const modalData = ref({});
     const replyTo = ref(null);
@@ -86,6 +87,33 @@ const App = {
       var newPos = before.length + 1 + name.length + 1;
       nextTick(function() { ta.selectionStart = ta.selectionEnd = newPos; ta.focus(); });
     }
+
+    /* 点击成员面板中的成员 -> 向输入框末尾追加 @昵称 ，支持连续点击多选 */
+    function onMemberClick(user) {
+      if (!user) return;
+      var name = user.nickname || user.username;
+      if (!name) return;
+      var mention = '@' + name + ' ';
+      var cur = msgInput.value || '';
+      /* 若已 @ 过该成员则跳过，避免重复 */
+      if (cur.indexOf(mention) >= 0) return;
+      /* 前面非空且不是空白则补一个空格 */
+      if (cur.length > 0 && !/[\s\n]$/.test(cur)) cur += ' ';
+      msgInput.value = cur + mention;
+      nextTick(function() {
+        var ta = document.querySelector('.input-area textarea');
+        if (ta) {
+          ta.style.height = 'auto';
+          ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+          var pos = msgInput.value.length;
+          ta.selectionStart = ta.selectionEnd = pos;
+          /* 桌面端抢焦点；手机端不 focus，避免软键盘把成员列表顶出去 */
+          if (window.innerWidth > 768) ta.focus();
+        }
+      });
+    }
+
+    function closeMembersPanel() { showMembers.value = false; }
 
     /* ===== Voice Recording ===== */
     const isRecording = ref(false);
@@ -317,6 +345,7 @@ const App = {
       store, msgStore, API, esc, fmtTime, fmtSize, avatarUrl, sanitize,
       togglePush, checkPush,
       mentionShow, mentionList, mentionIdx, selectMention,
+      onMemberClick, closeMembersPanel,
       showEmojiPicker, showPlusMenu, emojiTab,
       insertEmoji,
       emojiCategories, emojiByCategory,
@@ -452,10 +481,15 @@ const App = {
       </template>
     </div>
   </div>
-  <div v-if="showMembers" class="members-panel">
-    <div class="members-panel-header">在线成员 ({{store.onlineUsers.length}})</div>
+  <div class="members-overlay" :class="{show:showMembers}" @click="closeMembersPanel()"></div>
+  <div class="members-panel" :class="{open:showMembers}">
+    <div class="members-panel-header">
+      <span>在线成员 ({{store.onlineUsers.length}})</span>
+      <button class="members-close-btn" title="关闭" @click="closeMembersPanel()">✕</button>
+    </div>
+    <div class="members-hint">👆 点击成员可在消息中 @ 他（支持多选）</div>
     <div class="members-list">
-      <div v-for="u in store.onlineUsers" :key="u.username" class="member-item">
+      <div v-for="u in store.onlineUsers" :key="u.username" class="member-item" @click="onMemberClick(u)">
         <img :src="avatarUrl(u.avatar)" alt=""><span class="member-name">{{u.nickname||u.username}}</span><span class="online-dot on"></span>
       </div>
     </div>

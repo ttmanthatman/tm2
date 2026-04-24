@@ -33,13 +33,19 @@
 .chat-header-right .btn-icon{background:none;border:none;font-size:18px;cursor:pointer;padding:4px;border-radius:4px;color:#666}
 .chat-header-right .btn-icon:hover{background:#f0f0f0;color:#333}
 
-/* ===== Members Panel (右侧) ===== */
-.members-panel{width:240px;background:#fff;border-left:1px solid #e5e7eb;display:flex;flex-direction:column;flex-shrink:0}
-.members-panel-header{padding:14px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;font-weight:600;color:#333}
+/* ===== Members Panel (桌面右栏 / 手机抽屉) ===== */
+.members-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:100;opacity:0;pointer-events:none;transition:opacity .3s ease}
+.members-panel{width:240px;background:#fff;border-left:1px solid #e5e7eb;display:none;flex-direction:column;flex-shrink:0}
+.members-panel.open{display:flex}
+.members-panel-header{padding:14px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;font-weight:600;color:#333;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.members-close-btn{background:none;border:none;font-size:16px;color:#999;cursor:pointer;padding:4px 10px;border-radius:6px;display:none;line-height:1}
+.members-close-btn:hover{background:#f0f0f0;color:#333}
+.members-hint{padding:8px 16px;font-size:11px;color:#888;background:#fafafa;border-bottom:1px solid #eee;line-height:1.4}
 .members-list{flex:1;overflow-y:auto;padding:8px 12px}
-.member-item{display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:6px}
+.member-item{display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:6px;cursor:pointer;user-select:none;-webkit-user-select:none}
 .member-item:hover{background:#f8f9fa}
-.member-item img{width:28px;height:28px;border-radius:50%;object-fit:cover}
+.member-item:active{background:#eef0ff}
+.member-item img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0}
 .member-item .member-name{font-size:13px;color:#333;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .member-item .member-role{font-size:11px;color:#999;background:#f0f0f0;padding:1px 6px;border-radius:4px}
 .member-item .online-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}

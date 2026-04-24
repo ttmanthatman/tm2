@@ -346,3 +346,23 @@ body.sidebar-locked {
   font-weight: 700;
   color: #fff;
 }
+
+/* ===== 24. 成员面板 - 抽屉触控反馈 ===== */
+.members-close-btn{
+  transition: background .15s, transform .08s, opacity .15s;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.members-close-btn:active{
+  transform: scale(.9);
+  opacity: .75;
+}
+.members-overlay{
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.members-panel-header{
+  -webkit-user-select: none;
+  user-select: none;
+}
