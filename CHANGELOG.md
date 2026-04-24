@@ -2,6 +2,19 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [v0.5.4] - 2026-04-24
+### 调试
+- 新增 AI_DEBUG_MESSAGES 环境变量 (或 settings.ai_debug_messages='1')
+  开启后每次 DeepSeek 调用会打印完整 messages 数组到 pm2 日志
+  定位缓存不命中问题
+
+### 修复 (疑似缓存不命中元凶)
+- buildContext() 输出 user 消息时不再前置 "[AI]" / "昵称: " 前缀
+  —— 这些前缀让历史消息每次的相对位置都不同, 无法保证 prefix 稳定
+  新方案: 昵称信息合并进单条 user/assistant 纯文本, 不破坏原生 chat 格式
+- 改用 DeepSeek 原生 assistant/user 角色区分 AI 和人类,
+  不再依赖文本标记
+
 ## [v0.5.3] - 2026-04-24
 ### 改进
 - AI 日志显示缓存命中数: in 字段拆成 "hit+miss" (例: in=831 hit=768 miss=63)
