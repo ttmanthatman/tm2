@@ -1,6 +1,7 @@
 /**
  * TeamChat Socket.IO 处理模块
  * 实时消息、在线状态、接龙
+ * v0.5.0: 消息持久化后调用 AI trigger 评估器
  */
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("./config");
@@ -40,7 +41,6 @@ function setupSocket(io) {
   io.on("connection", (socket) => {
     const userId = socket.user.userId;
 
-    /* 踢掉旧连接 */
     const oldSid = userSocketMap.get(userId);
     if (oldSid && oldSid !== socket.id) {
       const s = io.sockets.sockets.get(oldSid);
@@ -52,7 +52,6 @@ function setupSocket(io) {
     }
     userSocketMap.set(userId, socket.id);
 
-    /* 注册在线用户 */
     const ui = db.prepare("SELECT nickname,avatar FROM users WHERE id=?").get(userId);
     onlineUsers.set(socket.id, {
       username: socket.user.username, userId,
@@ -61,12 +60,10 @@ function setupSocket(io) {
     });
     broadcastOnlineUsers(io);
 
-    /* 加入频道 Room */
     const userChannels = db.prepare("SELECT channel_id FROM channel_members WHERE user_id=?").all(userId);
     userChannels.forEach(c => socket.join("ch:" + c.channel_id));
     db.prepare("SELECT id FROM channels WHERE is_private=0").all().forEach(c => socket.join("ch:" + c.id));
 
-    /* ===== 切换频道 ===== */
     socket.on("switchChannel", (data) => {
       if (data && data.channelId && canAccessChannel(userId, data.channelId)) {
         socket.join("ch:" + data.channelId);
@@ -91,7 +88,6 @@ function setupSocket(io) {
           if (!cd.type || cd.type !== "chain" || !cd.topic) return;
         } catch(e) { return; }
       } else {
-        /* XSS 清理 */
         trimmed = trimmed.replace(/<(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\/\1>/gi, "");
         trimmed = trimmed.replace(/<(script|style|iframe|object|embed|link|meta)[^>]*\/?>/gi, "");
         trimmed = trimmed.replace(/\s+on[a-z]+\s*=\s*["'][^"']*["']/gi, "");
@@ -107,7 +103,7 @@ function setupSocket(io) {
         "INSERT INTO messages (user_id,username,content,reply_to,channel_id,created_at) VALUES (?,?,?,?,?,?)"
       ).run(userId, socket.user.username, trimmed, safeReplyTo, chId, nowUtc);
 
-      const user = db.prepare("SELECT nickname,avatar FROM users WHERE id=?").get(userId);
+      const user = db.prepare("SELECT nickname,avatar,is_ai FROM users WHERE id=?").get(userId);
       const message = {
         id: result.lastInsertRowid,
         username: socket.user.username,
@@ -116,7 +112,8 @@ function setupSocket(io) {
         content: trimmed, type: "text",
         reply_to: safeReplyTo,
         channel_id: chId,
-        created_at: nowUtc
+        created_at: nowUtc,
+        is_ai: user && user.is_ai ? 1 : 0
       };
       io.to("ch:" + chId).emit("newMessage", message);
 
@@ -128,6 +125,26 @@ function setupSocket(io) {
         pushText = trimmed.replace(/<[^>]*>/g, "").substring(0, 200);
       }
       sendPushToOthers(userId, user ? user.nickname : socket.user.username, pushText, chId);
+
+      /* ===== v0.5.0: AI 触发评估 =====
+       * 不 await，异步跑，不卡主消息路径。
+       * trigger.evaluate 内部自己判断是否是人类发的消息。 */
+      try {
+        const aiTrigger = require("./ai/trigger");
+        aiTrigger.evaluate({
+          message: {
+            id: result.lastInsertRowid,
+            user_id: userId,
+            username: socket.user.username,
+            content: trimmed,
+            type: "text",
+            channel_id: chId
+          },
+          io
+        });
+      } catch(e) {
+        console.error("[AI trigger hook]", e && e.message);
+      }
     });
 
     /* ===== 接龙更新 ===== */
@@ -166,7 +183,6 @@ function setupSocket(io) {
       sendPushToOthers(userId, myName, "[接龙] " + myName + " 参与了: " + origData.topic, origMsg.channel_id);
     });
 
-    /* ===== 断开连接 ===== */
     socket.on("disconnect", () => {
       if (userSocketMap.get(userId) === socket.id) userSocketMap.delete(userId);
       onlineUsers.delete(socket.id);

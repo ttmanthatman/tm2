@@ -52,6 +52,32 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+  CREATE TABLE IF NOT EXISTS ai_characters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    config_json TEXT NOT NULL,
+    state_json TEXT DEFAULT '{}',
+    enabled INTEGER DEFAULT 1,
+    tokens_used_today INTEGER DEFAULT 0,
+    budget_reset_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS ai_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    character_id INTEGER NOT NULL,
+    channel_id INTEGER,
+    trigger_type TEXT,
+    input_msg_id INTEGER,
+    output_msg_id INTEGER,
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    latency_ms INTEGER DEFAULT 0,
+    error TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_logs_char ON ai_logs(character_id, id DESC);
 `);
 
 /* ===== 迁移 (安全的 ALTER TABLE) ===== */
@@ -61,6 +87,7 @@ const migrations = [
   "ALTER TABLE users ADD COLUMN last_login_at TEXT",
   "ALTER TABLE messages ADD COLUMN channel_id INTEGER DEFAULT 1",
   "ALTER TABLE messages ADD COLUMN duration REAL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN is_ai INTEGER DEFAULT 0",
 ];
 migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

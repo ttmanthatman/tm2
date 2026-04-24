@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 角色管理 · TeamChat</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; background: #f5f6f8; color: #222; }
+  header { background: #667eea; color: #fff; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { margin: 0; font-size: 16px; font-weight: 500; }
+  header .meta { font-size: 12px; opacity: .9; }
+  main { max-width: 1100px; margin: 20px auto; padding: 0 16px 80px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h2 .dot { width: 8px; height: 8px; border-radius: 50%; background: #bbb; display: inline-block; }
+  .card h2 .dot.on { background: #22c55e; }
+  .card h2 .dot.off { background: #ef4444; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  .row label { font-size: 12px; color: #666; }
+  input[type=text], textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font: inherit; font-family: "SF Mono",Consolas,monospace; }
+  textarea { resize: vertical; min-height: 200px; font-size: 12px; line-height: 1.5; }
+  button { padding: 7px 14px; background: #667eea; color: #fff; border: 0; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  button.sec { background: #e5e7eb; color: #222; }
+  button.danger { background: #ef4444; }
+  button.ghost { background: transparent; color: #667eea; border: 1px solid #667eea; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #eef; color: #667eea; }
+  .badge.off { background: #fee; color: #c33; }
+  .logs { max-height: 300px; overflow-y: auto; background: #0f172a; color: #a5f3fc; font: 12px/1.5 "SF Mono",Consolas,monospace; padding: 10px; border-radius: 6px; }
+  .logs .l { display: block; white-space: pre-wrap; word-break: break-all; border-bottom: 1px solid #1e293b; padding: 4px 0; }
+  .logs .l.err { color: #fda4af; }
+  .alert { padding: 10px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; }
+  .alert.warn { background: #fef3c7; color: #92400e; }
+  .alert.err { background: #fee2e2; color: #991b1b; }
+  .alert.ok { background: #d1fae5; color: #065f46; }
+  .hint { color: #888; font-size: 12px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #ddd center/cover; display: inline-block; vertical-align: middle; }
+  a { color: #667eea; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🤖 AI 角色管理</h1>
+  <div class="meta">
+    <span id="status">加载中…</span>
+    &nbsp;·&nbsp; <a href="/" style="color:#fff">← 返回聊天</a>
+  </div>
+</header>
+
+<main>
+  <div id="alerts"></div>
+
+  <div class="card">
+    <h2>新建角色</h2>
+    <div class="row">
+      <label style="flex:0 0 80px">username</label>
+      <input type="text" id="new-username" placeholder="字母数字下划线短横，例如 xiaoyu">
+    </div>
+    <div class="row">
+      <label style="flex:0 0 80px">配置 JSON</label>
+    </div>
+    <textarea id="new-config" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:10px; justify-content:space-between">
+      <div>
+        <button class="sec" onclick="loadTemplate()">插入模板</button>
+        <button class="sec" onclick="importFromFile()">从 JSON 文件导入</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="onFileImport(event)">
+      </div>
+      <button onclick="createChar()">创建角色</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+</main>
+
+<script>
+const API = '';
+const token = localStorage.getItem('token') || '';
+const isAdmin = localStorage.getItem('isAdmin') === 'true';
+
+if (!token) { location.replace('/'); }
+if (!isAdmin) { alert('需要管理员权限'); location.replace('/'); }
+
+function authH(extra) {
+  return Object.assign({ 'Authorization': 'Bearer ' + token }, extra || {});
+}
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+function alertMsg(msg, kind) {
+  const el = document.createElement('div');
+  el.className = 'alert ' + (kind || 'warn');
+  el.textContent = msg;
+  document.getElementById('alerts').appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+}
+
+const TEMPLATE = {
+  name: "小雨",
+  persona: {
+    identity: "25 岁独立插画师，住在成都",
+    personality: ["温柔", "慢热", "偶尔毒舌"],
+    speaking_style: "短句为主，爱用'嗯...''诶'开头",
+    interests: ["猫", "咖啡", "宫崎骏电影"],
+    taboos: ["不聊政治", "不发长段鸡汤"]
+  },
+  schedule: {
+    timezone: "Asia/Shanghai",
+    online_windows: [
+      { days: ["mon","tue","wed","thu","fri"], from: "19:00", to: "23:00" },
+      { days: ["sat","sun"], from: "10:00", to: "23:59" }
+    ]
+  },
+  trigger: {
+    mode: "passive",
+    mention_keywords: ["小雨"],
+    max_replies_per_minute: 3
+  },
+  channels: [],
+  model: {
+    provider: "deepseek",
+    name: "deepseek-chat",
+    temperature: 0.8,
+    max_context_messages: 20
+  },
+  budget: {
+    daily_tokens: 50000,
+    per_message_max_tokens: 500
+  }
+};
+
+function loadTemplate() {
+  document.getElementById('new-config').value = JSON.stringify(TEMPLATE, null, 2);
+}
+function importFromFile() { document.getElementById('import-file').click(); }
+function onFileImport(ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const o = JSON.parse(r.result);
+      document.getElementById('new-config').value = JSON.stringify(o, null, 2);
+      alertMsg('已导入 ' + f.name, 'ok');
+    } catch(e) { alertMsg('JSON 解析失败：' + e.message, 'err'); }
+  };
+  r.readAsText(f);
+  ev.target.value = '';
+}
+
+async function loadList() {
+  try {
+    const r = await fetch(API + '/api/ai/characters', { headers: authH() });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.message || 'HTTP ' + r.status);
+
+    let status = '';
+    if (!d.key_set) status = '⚠️ 未配置 .deepseek_key 文件';
+    else if (!d.ai_enabled) status = '⚠️ AI 功能已禁用';
+    else status = '✅ AI 就绪 · ' + d.characters.length + ' 个角色';
+    document.getElementById('status').textContent = status;
+
+    const cont = document.getElementById('list');
+    cont.innerHTML = '';
+    for (const c of d.characters) cont.appendChild(renderCard(c));
+  } catch(e) { alertMsg('加载失败：' + e.message, 'err'); }
+}
+
+function renderCard(c) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  const avatarUrl = c.avatar ? (API + '/avatars/' + encodeURIComponent(c.avatar)) : '/images/default-avatar.svg';
+  const onlineCls = c.enabled ? (c.is_online_now ? 'on' : 'off') : 'off';
+  el.innerHTML =
+    '<h2>' +
+      '<span class="dot ' + onlineCls + '"></span>' +
+      '<span class="avatar" style="background-image:url(' + avatarUrl + ')"></span>' +
+      escapeHtml(c.nickname || c.username) +
+      ' <span class="hint">@' + escapeHtml(c.username) + ' · id=' + c.id + '</span>' +
+      ' <span class="badge' + (c.enabled ? '' : ' off') + '">' + (c.enabled ? '启用' : '停用') + '</span>' +
+      ' <span class="badge">' + (c.is_online_now ? '当前在线' : '当前离线') + '</span>' +
+      ' <span class="badge">今日 token: ' + (c.tokens_used_today || 0) + '</span>' +
+    '</h2>' +
+    '<textarea spellcheck="false" id="cfg-' + c.id + '"></textarea>' +
+    '<div class="row" style="margin-top:10px">' +
+      '<button onclick="saveChar(' + c.id + ')">保存配置</button>' +
+      '<button class="sec" onclick="toggleChar(' + c.id + ', ' + (c.enabled ? 'false' : 'true') + ')">' + (c.enabled ? '停用' : '启用') + '</button>' +
+      '<button class="ghost" onclick="uploadAvatar(' + c.id + ')">换头像</button>' +
+      '<input type="file" id="av-' + c.id + '" accept="image/*" style="display:none" onchange="doUploadAvatar(' + c.id + ', event)">' +
+      '<button class="ghost" onclick="testChar(' + c.id + ')">测试发言</button>' +
+      '<button class="ghost" onclick="showLogs(' + c.id + ')">查看日志</button>' +
+      '<button class="sec" onclick="exportChar(' + c.id + ')">导出 JSON</button>' +
+      '<button class="danger" style="margin-left:auto" onclick="deleteChar(' + c.id + ')">删除</button>' +
+    '</div>' +
+    '<div id="logs-' + c.id + '"></div>';
+  el.querySelector('#cfg-' + c.id).value = JSON.stringify(c.config, null, 2);
+  return el;
+}
+
+async function createChar() {
+  const username = document.getElementById('new-username').value.trim();
+  const raw = document.getElementById('new-config').value.trim();
+  if (!username) return alertMsg('请填 username', 'err');
+  let config;
+  try { config = JSON.parse(raw); } catch(e) { return alertMsg('JSON 解析失败：' + e.message, 'err'); }
+  try {
+    const r = await fetch(API + '/api/ai/characters', {
+      method: 'POST',
+      headers: authH({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ username, config })
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('创建失败：' + (d.message || ''), 'err');
+    alertMsg('创建成功', 'ok');
+    document.getElementById('new-username').value = '';
+    document.getElementById('new-config').value = '';
+    loadList();
+  } catch(e) { alertMsg('创建失败：' + e.message, 'err'); }
+}
+
+async function saveChar(id) {
+  const raw = document.getElementById('cfg-' + id).value.trim();
+  let config;
+  try { config = JSON.parse(raw); } catch(e) { return alertMsg('JSON 解析失败：' + e.message, 'err'); }
+  try {
+    const r = await fetch(API + '/api/ai/characters/' + id, {
+      method: 'PUT',
+      headers: authH({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ config })
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('保存失败：' + (d.message || ''), 'err');
+    alertMsg('已保存', 'ok');
+    loadList();
+  } catch(e) { alertMsg('保存失败：' + e.message, 'err'); }
+}
+
+async function toggleChar(id, enabled) {
+  try {
+    const r = await fetch(API + '/api/ai/characters/' + id, {
+      method: 'PUT',
+      headers: authH({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ enabled })
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('操作失败：' + (d.message || ''), 'err');
+    loadList();
+  } catch(e) { alertMsg(e.message, 'err'); }
+}
+
+async function deleteChar(id) {
+  if (!confirm('确定删除此 AI 角色？它发过的消息会保留但指向的用户会被删除。')) return;
+  try {
+    const r = await fetch(API + '/api/ai/characters/' + id, { method: 'DELETE', headers: authH() });
+    const d = await r.json();
+    if (!d.success) return alertMsg('删除失败：' + (d.message || ''), 'err');
+    alertMsg('已删除', 'ok');
+    loadList();
+  } catch(e) { alertMsg(e.message, 'err'); }
+}
+
+function uploadAvatar(id) { document.getElementById('av-' + id).click(); }
+async function doUploadAvatar(id, ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const fd = new FormData();
+  fd.append('avatar', f);
+  try {
+    const r = await fetch(API + '/api/ai/characters/' + id + '/avatar', {
+      method: 'POST', headers: authH(), body: fd
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('上传失败：' + (d.message || ''), 'err');
+    alertMsg('头像已更新', 'ok');
+    loadList();
+  } catch(e) { alertMsg(e.message, 'err'); }
+  ev.target.value = '';
+}
+
+async function testChar(id) {
+  const channelId = prompt('在哪个频道触发测试发言？(填频道 id，默认 1)', '1');
+  if (channelId == null) return;
+  const chId = parseInt(channelId) || 1;
+  try {
+    const r = await fetch(API + '/api/ai/characters/' + id + '/test', {
+      method: 'POST',
+      headers: authH({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ channelId: chId })
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('测试失败：' + (d.message || ''), 'err');
+    alertMsg('已触发，请去聊天室看效果', 'ok');
+  } catch(e) { alertMsg(e.message, 'err'); }
+}
+
+async function showLogs(id) {
+  try {
+    const r = await fetch(API + '/api/ai/characters/' + id + '/logs?limit=30', { headers: authH() });
+    const d = await r.json();
+    const cont = document.getElementById('logs-' + id);
+    if (!d.success || !d.logs.length) { cont.innerHTML = '<div class="hint" style="margin-top:10px">暂无日志</div>'; return; }
+    const html = ['<div class="logs" style="margin-top:10px">'];
+    for (const l of d.logs) {
+      const cls = l.error ? 'l err' : 'l';
+      const parts = [
+        '#' + l.id,
+        l.created_at,
+        l.trigger_type || '-',
+        'in=' + (l.input_tokens || 0) + ' out=' + (l.output_tokens || 0),
+        l.latency_ms + 'ms',
+        l.error ? ('ERR: ' + l.error) : ('msg=' + (l.output_msg_id || '-'))
+      ];
+      html.push('<span class="' + cls + '">' + escapeHtml(parts.join(' · ')) + '</span>');
+    }
+    html.push('</div>');
+    cont.innerHTML = html.join('');
+  } catch(e) { alertMsg(e.message, 'err'); }
+}
+
+function exportChar(id) {
+  const raw = document.getElementById('cfg-' + id).value;
+  const blob = new Blob([raw], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ai-character-' + id + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+loadList();
+setInterval(loadList, 30000); /* 30 秒刷新一次在线状态和预算 */
+</script>
+</body>
+</html>
