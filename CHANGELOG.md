@@ -2,6 +2,19 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## v0.4.9 (2026-04-24)
+
+### Fixed
+- 重做 v0.4.8 的 iOS 底部留白修复。v0.4.8 在 body 上加
+  `position:fixed` 和在 html 上加 `overflow:hidden` 会导致:
+  - Safari 下双指可以缩放页面 (裸露的 html 区域不再被 #app
+    的 `touch-action:pan-y` 覆盖)
+  - 聚焦输入框时 iOS 仍会推动 layout viewport, 使固定的
+    body 被整体顶上, chat-header/messages 被顶出屏幕顶部
+- v0.4.9 只保留 visualViewport → `--app-vh` 高度同步,
+  body/html 回到普通文档流, 让 body 自然等于可见区高度,
+  iOS 无需再做聚焦滚动补偿。
+  
 ## v0.4.8 (2026-04-24)
 
 ### Fixed
