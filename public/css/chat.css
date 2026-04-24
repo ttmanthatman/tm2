@@ -157,11 +157,12 @@ img.tc-emoji{display:inline-block;width:22px;height:22px;vertical-align:text-bot
 .toggle-switch input:checked+.slider::before{transform:translateX(20px)}
 
 /* ===== @-Mention Popup ===== */
-.mention-popup{position:absolute;bottom:100%;left:12px;width:auto;min-width:120px;max-width:200px;background:#fff;border-radius:12px;box-shadow:0 -4px 20px rgba(0,0,0,.14);z-index:500;max-height:240px;overflow-y:auto;margin-bottom:6px;padding:4px 0}
+.mention-popup{position:absolute;bottom:100%;left:12px;width:auto;min-width:120px;max-width:200px;background:#fff;border-radius:12px;box-shadow:0 -4px 20px rgba(0,0,0,.14);z-index:500;max-height:320px;overflow-y:auto;margin-bottom:6px;padding:4px 0}
 .mention-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer}
 .mention-item:hover,.mention-item.active{background:#f0f2ff}
 .mention-avatar{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0}
 .mention-nick{font-size:14px;font-weight:500;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mention-item .ai-tag{display:inline-block;font-size:10px;color:#667eea;background:#eef;padding:1px 5px;border-radius:3px;margin-right:4px;vertical-align:middle;font-weight:500}
 
 /* ===== @-Mention indicator (flat, thin gold outline) ===== */
 .msg-bubble.mentioned{outline:1.5px solid #d4a017;outline-offset:1px}
