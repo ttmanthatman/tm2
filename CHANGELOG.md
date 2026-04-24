@@ -2,6 +2,15 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## v0.4.8 (2026-04-24)
+
+### Fixed
+- 修复 iOS Safari / PWA 下聊天室底部出现大片空白的问题。
+- 修复双击屏幕空白位置(Safari 底栏切换)后, 聊天区整体上移、
+  空白变得更大的问题。
+- 技术方案: 用 `visualViewport` 实时写入 `--app-vh` CSS 变量,
+  替换所有 `height:100dvh` 的容器; html/body 固定到视口,
+  避免聚焦输入框后 html 残留滚动偏移。
 ## [v0.4.7] - 2026-04-24
 
 ### Added
