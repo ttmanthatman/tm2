@@ -2,6 +2,14 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [v0.5.1] - 2026-04-24
+### 改进
+- DeepSeek API Key 改为管理页配置（存 settings 表），管理员直接在 /ai-admin.html 粘贴保存，不再需要 SSH 到服务器建 .deepseek_key 文件
+- 启动时优先读 DB → 环境变量 → .deepseek_key 文件（三级 fallback，老部署无缝兼容）
+- 管理页新增「API Key 设置」卡片，支持查看当前是否已配置、粘贴保存、清空
+### 安全
+- GET /api/ai/config 只返回 key 的掩码（前 4 后 4），不返回明文
+
 ## [v0.5.0] - 2026-04-24
 ### 新增
 - AI 角色功能 MVP：通过 DeepSeek API 让 AI 在聊天室以"虚拟用户"身份发言
