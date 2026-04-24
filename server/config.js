@@ -33,6 +33,16 @@ if (fs.existsSync(SECRET_FILE)) {
   fs.writeFileSync(SECRET_FILE, JWT_SECRET, { mode: 0o600 });
 }
 
+/* ===== DeepSeek API Key (仅初始 fallback, 运行时读 DB) ===== */
+const DEEPSEEK_KEY_FILE = path.join(APP_ROOT, ".deepseek_key");
+let _fallbackKey = process.env.DEEPSEEK_API_KEY || "";
+if (!_fallbackKey && fs.existsSync(DEEPSEEK_KEY_FILE)) {
+  _fallbackKey = fs.readFileSync(DEEPSEEK_KEY_FILE, "utf-8").trim();
+}
+const DEEPSEEK_FALLBACK_KEY = _fallbackKey; /* 仅供 database.js 首次写入 DB */
+const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
+const AI_FEATURE_ENABLED = (process.env.AI_ENABLED !== "0"); /* 是否启用 AI 特性, key 另判 */
+
 /* ===== VAPID (Web Push) ===== */
 const VAPID_FILE = path.join(APP_ROOT, ".vapid_keys");
 let vapidKeys;
@@ -91,5 +101,6 @@ const DEFAULT_SETTINGS = {
 module.exports = {
   APP_ROOT, PORT, DB_PATH, UPLOAD_DIR, AVATAR_DIR, BG_DIR, VOICE_DIR,
   JWT_SECRET, vapidKeys,
+  DEEPSEEK_FALLBACK_KEY, DEEPSEEK_BASE_URL, AI_FEATURE_ENABLED,
   ALLOWED_EXT, VALID_TIMEZONES, DEFAULT_SETTINGS
 };

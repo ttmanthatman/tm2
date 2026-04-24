@@ -4,8 +4,8 @@
  * v0.5.0: 只支持被动 @mention 模式
  */
 const { db } = require("../database");
-const { AI_ENABLED, DEEPSEEK_API_KEY } = require("../config");
-const { isOnline, runReply } = require("./character");
+const { AI_FEATURE_ENABLED } = require("../config");
+const { isOnline, runReply, getCurrentKey } = require("./character");
 
 /* 角色缓存 (5 秒) */
 let _cache = null;
@@ -76,7 +76,8 @@ function isMentioned(plainLower, ch) {
 
 /* 主入口：socket.js 在 sendMessage 持久化后调用此函数 */
 function evaluate({ message, io }) {
-  if (!AI_ENABLED || !DEEPSEEK_API_KEY) return;
+  if (!AI_FEATURE_ENABLED) return;
+  if (!getCurrentKey()) return;
   if (!message || !message.id || !message.channel_id || !message.user_id) return;
   if (message.type && message.type !== "text") return;
   if (!message.content || typeof message.content !== "string") return;

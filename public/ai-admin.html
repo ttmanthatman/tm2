@@ -51,7 +51,22 @@
 
 <main>
   <div id="alerts"></div>
-
+<div class="card">
+    <h2>🔑 DeepSeek API Key</h2>
+    <div id="key-status" class="hint" style="margin-bottom:8px">加载中…</div>
+    <div class="row">
+      <input type="password" id="key-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+    </div>
+    <div class="row">
+      <button onclick="saveKey()">保存 Key</button>
+      <button class="sec" onclick="testKey()">测试连通</button>
+      <button class="danger" onclick="clearKey()" style="margin-left:auto">清空 Key</button>
+    </div>
+    <div class="hint" style="margin-top:6px">
+      key 只会显示掩码（前4后4），明文仅服务器存储。保存后立即生效，无需重启。
+      <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">获取 DeepSeek Key</a>
+    </div>
+  </div>
   <div class="card">
     <h2>新建角色</h2>
     <div class="row">
@@ -148,6 +163,67 @@ function onFileImport(ev) {
   };
   r.readAsText(f);
   ev.target.value = '';
+}
+
+async function loadKeyStatus() {
+  try {
+    const r = await fetch(API + '/api/ai/config', { headers: authH() });
+    const d = await r.json();
+    const st = document.getElementById('key-status');
+    if (d.key_set) {
+      st.innerHTML = '当前已配置: <code>' + escapeHtml(d.key_masked) + '</code>';
+      st.style.color = '#059669';
+    } else {
+      st.textContent = '⚠️ 尚未配置 API Key，AI 角色不会回复。';
+      st.style.color = '#b45309';
+    }
+  } catch(e) {
+    document.getElementById('key-status').textContent = '读取失败: ' + e.message;
+  }
+}
+
+async function saveKey() {
+  const key = document.getElementById('key-input').value.trim();
+  if (!key) return alertMsg('请先粘贴 key', 'err');
+  try {
+    const r = await fetch(API + '/api/ai/config/key', {
+      method: 'POST',
+      headers: authH({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ key })
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('保存失败: ' + (d.message || ''), 'err');
+    alertMsg('Key 已保存: ' + (d.key_masked || ''), 'ok');
+    document.getElementById('key-input').value = '';
+    loadKeyStatus(); loadList();
+  } catch(e) { alertMsg(e.message, 'err'); }
+}
+
+async function clearKey() {
+  if (!confirm('确定清空 API Key? 所有 AI 角色将立即停止回复。')) return;
+  try {
+    const r = await fetch(API + '/api/ai/config/key', {
+      method: 'POST',
+      headers: authH({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ key: '' })
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('操作失败: ' + (d.message || ''), 'err');
+    alertMsg('已清空', 'ok');
+    loadKeyStatus(); loadList();
+  } catch(e) { alertMsg(e.message, 'err'); }
+}
+
+async function testKey() {
+  alertMsg('正在测试 ... 请等待约 3 秒', 'warn');
+  try {
+    const r = await fetch(API + '/api/ai/config/test-key', {
+      method: 'POST', headers: authH()
+    });
+    const d = await r.json();
+    if (!d.success) return alertMsg('连通失败: ' + (d.message || ''), 'err');
+    alertMsg('✅ 连通成功, 回复="' + d.reply + '", 用时 ' + d.latency_ms + 'ms, ' + d.tokens + ' tokens', 'ok');
+  } catch(e) { alertMsg('测试失败: ' + e.message, 'err'); }
 }
 
 async function loadList() {
@@ -329,8 +405,9 @@ function exportChar(id) {
   URL.revokeObjectURL(a.href);
 }
 
+loadKeyStatus();
 loadList();
-setInterval(loadList, 30000); /* 30 秒刷新一次在线状态和预算 */
+setInterval(() => { loadKeyStatus(); loadList(); }, 30000);
 </script>
 </body>
 </html>

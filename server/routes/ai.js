@@ -8,8 +8,15 @@ const { db } = require("../database");
 const { authMiddleware, adminMiddleware } = require("../middleware");
 const { uploadAvatar } = require("../upload");
 const { invalidateCache } = require("../ai/trigger");
-const { isOnline, runReply } = require("../ai/character");
-const { AI_ENABLED, DEEPSEEK_API_KEY } = require("../config");
+const { isOnline, runReply, getCurrentKey } = require("../ai/character");
+const { AI_FEATURE_ENABLED } = require("../config");
+const { getSetting, setSetting } = require("../database");
+
+function maskKey(k) {
+  if (!k) return "";
+  if (k.length <= 10) return "****";
+  return k.substring(0, 4) + "****" + k.substring(k.length - 4);
+}
 
 const router = express.Router();
 
@@ -69,12 +76,66 @@ router.get("/ai/characters", authMiddleware, adminMiddleware, (req, res) => {
       is_online_now: isOnline(config.schedule)
     };
   });
+const curKey = getCurrentKey();
   res.json({
     success: true,
     characters: list,
-    ai_enabled: !!AI_ENABLED,
-    key_set: !!DEEPSEEK_API_KEY
+    ai_enabled: !!AI_FEATURE_ENABLED,
+    key_set: !!curKey,
+    key_masked: maskKey(curKey)
   });
+});
+
+/* ===== 查看当前 AI 全局配置 (key 掩码) ===== */
+router.get("/ai/config", authMiddleware, adminMiddleware, (req, res) => {
+  const curKey = getCurrentKey();
+  res.json({
+    success: true,
+    ai_feature_enabled: !!AI_FEATURE_ENABLED,
+    key_set: !!curKey,
+    key_masked: maskKey(curKey)
+  });
+});
+
+/* ===== 设置 / 清空 DeepSeek API Key ===== */
+router.post("/ai/config/key", authMiddleware, adminMiddleware, (req, res) => {
+  const raw = req.body && typeof req.body.key === "string" ? req.body.key.trim() : "";
+  if (raw === "") {
+    setSetting("deepseek_api_key", "");
+    return res.json({ success: true, cleared: true });
+  }
+  /* DeepSeek key 格式粗校验 */
+  if (!/^sk-[A-Za-z0-9_-]{10,}$/.test(raw)) {
+    return res.json({ success: false, message: "key 格式不对 (应以 sk- 开头)" });
+  }
+  setSetting("deepseek_api_key", raw);
+  res.json({ success: true, key_masked: maskKey(raw) });
+});
+
+/* ===== 测试 key 连通性 (不依赖角色) ===== */
+router.post("/ai/config/test-key", authMiddleware, adminMiddleware, async (req, res) => {
+  const key = getCurrentKey();
+  if (!key) return res.json({ success: false, message: "尚未设置 key" });
+  try {
+    const ds = require("../ai/deepseek-client");
+    const r = await ds.chatCompletion({
+      apiKey: key,
+      baseUrl: require("../config").DEEPSEEK_BASE_URL,
+      model: "deepseek-chat",
+      messages: [{ role: "user", content: "回复一个字: 好" }],
+      temperature: 0,
+      maxTokens: 10,
+      timeoutMs: 15000
+    });
+    res.json({
+      success: true,
+      reply: (r.content || "").substring(0, 50),
+      tokens: (r.inputTokens || 0) + (r.outputTokens || 0),
+      latency_ms: r.latency
+    });
+  } catch(e) {
+    res.json({ success: false, message: (e && e.message) || String(e) });
+  }
 });
 
 /* ===== 创建 ===== */
