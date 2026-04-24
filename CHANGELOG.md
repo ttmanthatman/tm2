@@ -2,6 +2,19 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [v0.5.3] - 2026-04-24
+### 改进
+- AI 日志显示缓存命中数: in 字段拆成 "hit+miss" (例: in=831 hit=768 miss=63)
+  便于观察 DeepSeek Prompt Caching 效果 (命中部分 1 折计费)
+- 强制禁用 deepseek-reasoner 模型: 若 config 错配为 reasoner, 自动回退
+  到 deepseek-chat 并记录告警, 防止产生思考 token
+- ai_logs 表新增 cache_hit_tokens, cache_miss_tokens 两列
+- DeepSeek 请求显式声明 stream=false, 确保走缓存路径
+### 数据库
+- ALTER TABLE ai_logs ADD COLUMN cache_hit_tokens INTEGER DEFAULT 0
+- ALTER TABLE ai_logs ADD COLUMN cache_miss_tokens INTEGER DEFAULT 0
+- 这两个迁移是 IF NOT EXISTS 风格, 老库可平滑升级
+
 ## [v0.5.2] - 2026-04-24
 ### 修复
 - 访问 /ai-admin (无 .html 后缀) 错误地回退到主聊天页的问题
