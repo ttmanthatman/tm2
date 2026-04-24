@@ -119,20 +119,11 @@ const AdminMethods = {
       login_bg_video:       a.login_bg_video       || '',
       login_bg_video_mode:  fixMode(a.login_bg_video_mode),
 
-      parallax_enabled:  a.parallax_enabled === '1',
-      parallax_strength: parseInt(a.parallax_strength) || 30,
-
-      bubble_style:          a.bubble_style          || 'flat',
       bubble_my_color1:      a.bubble_my_color1      || '#667eea',
-      bubble_my_color2:      a.bubble_my_color2      || '#764ba2',
       bubble_other_color1:   a.bubble_other_color1   || '#ffffff',
-      bubble_other_color2:   a.bubble_other_color2   || '#e8eeff',
       bubble_my_text:        a.bubble_my_text         || '#ffffff',
-      bubble_other_text:     a.bubble_other_text      || '#333333',
-      bubble_gradient_angle: parseInt(a.bubble_gradient_angle) || 135,
-      bubble_3d_intensity:   parseInt(a.bubble_3d_intensity)   || 60
+      bubble_other_text:     a.bubble_other_text      || '#333333'
     };
-    this.modalData.gyroState = this._gyroInitState();
     this.currentModal = 'appearance';
     /* 必须 await: 早期不 await, 一旦请求慢一点点用户就以为列表空 */
     await this.loadAppBgList();
@@ -248,18 +239,11 @@ const AdminMethods = {
       login_bg_video:       a.login_bg_video,
       login_bg_video_mode:  a.login_bg_video_mode,
 
-      parallax_enabled:  a.parallax_enabled ? '1' : '0',
-      parallax_strength: String(a.parallax_strength || 30),
-
-      bubble_style:          a.bubble_style || 'flat',
+      bubble_style:          'flat',
       bubble_my_color1:      a.bubble_my_color1,
-      bubble_my_color2:      a.bubble_my_color2,
       bubble_other_color1:   a.bubble_other_color1,
-      bubble_other_color2:   a.bubble_other_color2,
       bubble_my_text:        a.bubble_my_text,
-      bubble_other_text:     a.bubble_other_text,
-      bubble_gradient_angle: String(a.bubble_gradient_angle || 135),
-      bubble_3d_intensity:   String(a.bubble_3d_intensity || 60)
+      bubble_other_text:     a.bubble_other_text
     };
     try {
       const r = await fetch(API + '/api/settings/appearance', {
@@ -271,73 +255,6 @@ const AdminMethods = {
       this.modalData.appearMsg = d.success ? '✅ 已保存' : '失败';
     } catch (e) { this.modalData.appearMsg = '失败'; }
   },
-
-  /* ====== 视差 / 陀螺仪姿态采集 ====== */
-  _gyroInitState() {
-    const supported = !!(window.Parallax && Parallax.isSupported());
-    const needsPerm = !!(window.Parallax && Parallax.isIOSPermissionRequired());
-    return {
-      supported,
-      needsPerm,
-      permGranted: !needsPerm,        /* 非 iOS 默认已授权 */
-      capturing: false,
-      live: null,                     /* 实时姿态 {beta, gamma, alpha} */
-      baselineLocal: null,            /* 本次刚采到的基线 */
-      msg: supported
-        ? (needsPerm ? '此设备需要授权 (iOS 13+), 请点击 "授权陀螺仪"' : '可以开始校准')
-        : '⚠️ 当前设备/浏览器不支持 DeviceOrientation API'
-    };
-  },
-
-  async doRequestGyroPerm() {
-    if (!window.Parallax) return;
-    const ok = await Parallax.requestPermission();
-    const g = this.modalData.gyroState;
-    g.permGranted = !!ok;
-    g.msg = ok ? '✅ 已授权, 可以开始校准' : '❌ 授权被拒绝, 可以稍后重试';
-  },
-
-  async doStartGyroCapture() {
-    if (!window.Parallax) return;
-    const g = this.modalData.gyroState;
-    if (!g.supported) return;
-    if (!g.permGranted) { await this.doRequestGyroPerm(); if (!g.permGranted) return; }
-    g.capturing = true; g.msg = '📡 采集中, 请保持设备水平 2 秒…';
-    /* 一边校准一边把实时数据回写 UI */
-    const stopLive = Parallax.startCapture(s => {
-      g.live = { beta: s.beta, gamma: s.gamma, alpha: s.alpha };
-    }, {});
-    try {
-      const baseline = await Parallax.calibrate(2000);
-      g.baselineLocal = baseline;
-      /* 写入草稿; 真正落库要等用户点保存 */
-      this.modalData.appDraft.parallax_baseline_pending = JSON.stringify(baseline);
-      g.msg = '✅ 校准完成 (β=' + baseline.beta.toFixed(2)
-            + '°, γ=' + baseline.gamma.toFixed(2) + '°), 记得点保存';
-    } catch (e) {
-      g.msg = '❌ 采集失败: ' + (e.message || e);
-    }
-    g.capturing = false;
-    stopLive();
-  },
-
-  /* 把刚采到的基线一起送到后端 (单独按钮, 也可以随保存一起) */
-  async doSaveGyroBaseline() {
-    const pending = this.modalData.appDraft && this.modalData.appDraft.parallax_baseline_pending;
-    if (!pending) { this.modalData.gyroState.msg = '请先校准一次'; return; }
-    try {
-      const r = await fetch(API + '/api/settings/appearance', {
-        method: 'POST',
-        headers: authH({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ parallax_baseline: pending })
-      });
-      const d = await r.json();
-      this.modalData.gyroState.msg = d.success ? '✅ 基线已保存' : '保存失败';
-    } catch (e) { this.modalData.gyroState.msg = '保存失败'; }
-  },
-
-  async doSaveAppearanceLegacy_REMOVED() { /* 占位, 防止旧调用报错 */ },
-
 
   async doExportBackup() {
     const s = document.getElementById('bkStart').value, e = document.getElementById('bkEnd').value;

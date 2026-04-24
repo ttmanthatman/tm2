@@ -38,33 +38,16 @@
 .ch-perm-row select{padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px}
 
 /* ===== 背景层 (聊天/登录共用) ===== */
-.bg-layer{position:absolute;inset:0;z-index:0;background-position:center;pointer-events:none;overflow:hidden;
-  /* 视差启用时, transform 由 Parallax.applyToLayers() 写入; 给一点超出余量防止边缘穿帮 */
-  will-change:transform}
+.bg-layer{position:absolute;inset:0;z-index:0;background-position:center;pointer-events:none;overflow:hidden}
 .bg-layer .bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background:#000}
 .login-page{position:relative;overflow:hidden}
 .login-page > .login-card{position:relative;z-index:2}
-/* 当启用视差时给图层留出位移余量, 防止边缘露白 */
-.bg-layer{margin:-20px;padding:20px}
 
 /* ===== 外观定制: 新增控件 ===== */
 .bg-config-block{background:#fafbff;border:1px dashed #d6dcff;border-radius:8px;padding:10px 12px;margin:6px 0 4px}
 .bg-config-block select{margin-bottom:6px}
 .bg-config-block .field-label{margin-top:6px}
 .modal .hint{font-size:12px;color:#888;line-height:1.5;margin:6px 0;padding:6px 8px;background:#f5f7ff;border-left:3px solid #c7d2fe;border-radius:4px}
-
-/* 视差面板 */
-.parallax-section .exp-tag{display:inline-block;margin-left:6px;padding:1px 6px;font-size:10px;background:#fef3c7;color:#92400e;border-radius:8px;vertical-align:middle;font-weight:600}
-.parallax-toggle{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;cursor:pointer;user-select:none}
-.parallax-toggle input{width:auto;margin:0}
-.gyro-box{background:#fafbff;border:1px solid #e0e7ff;border-radius:8px;padding:10px;margin-top:8px}
-.gyro-status{font-size:13px;color:#3730a3;line-height:1.5}
-.gyro-status.warn{color:#92400e}
-.gyro-live{font-size:12px;color:#555;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:6px;padding:4px 6px;background:#fff;border-radius:4px;border:1px solid #eee}
-.gyro-baseline{font-size:12px;color:#166534;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:4px 6px;background:#dcfce7;border-radius:4px}
-.gyro-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.gyro-actions button{flex:1;min-width:120px;width:auto;margin:0;padding:8px 12px;font-size:13px}
-.gyro-actions button:disabled{opacity:.5;cursor:not-allowed}
 
 /* ===== 外观定制: 实时预览 ===== */
 .appear-preview-section{background:linear-gradient(180deg,#fafbff,#fff);border:1px solid #e0e7ff;border-radius:10px;padding:12px}

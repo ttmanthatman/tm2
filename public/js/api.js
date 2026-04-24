@@ -8,6 +8,8 @@
  *   2) _ensureBgVideoCss(): 选择器匹配 .messages-wrapper > .messages,
  *      视频/图片模式下都强制 .messages 自身透明, 让背景层真正显出来.
  *   3) 图片背景也改为设在 .messages-wrapper 上(不滚动), 而非 .messages(会跟内容滚).
+ *   4) v0.4.6: _applyBubbleStyle 简化为只处理 flat 纯色 (删除 2D/3D 模式分支,
+ *      删除 _hexToHSL / _hsl 工具函数)。
  */
 
 /* ===== 全员列表 (供 @提及) ===== */
@@ -151,70 +153,30 @@ function _removeBgVideo(host) {
   if (old) old.remove();
 }
 
-/* ===== Bubble Style helpers ===== */
-function _hexToHSL(hex) {
-  if (!hex || hex.length < 7) return { h: 0, s: 0, l: 50 };
-  var r = parseInt(hex.slice(1,3),16)/255;
-  var g = parseInt(hex.slice(3,5),16)/255;
-  var b = parseInt(hex.slice(5,7),16)/255;
-  var max = Math.max(r,g,b), min = Math.min(r,g,b);
-  var h = 0, s = 0, l = (max+min)/2;
-  if (max !== min) {
-    var d = max - min;
-    s = l > .5 ? d/(2-max-min) : d/(max+min);
-    if (max === r) h = ((g-b)/d + (g<b?6:0)) / 6;
-    else if (max === g) h = ((b-r)/d + 2) / 6;
-    else h = ((r-g)/d + 4) / 6;
-  }
-  return { h: h*360, s: s*100, l: l*100 };
-}
-function _hsl(h,s,l) { return 'hsl('+Math.round(h)+','+Math.round(Math.max(0,Math.min(100,s)))+'%,'+Math.round(Math.max(0,Math.min(100,l)))+'%)'; }
-
+/* ===== Bubble Style (扁平化后只注入颜色) ===== */
 function _applyBubbleStyle(d) {
   var root = document.documentElement.style;
   var body = document.body;
-  var mode = d.bubble_style || 'flat';
 
-  /* 清除所有 bubble mode class */
-  body.classList.remove('bubble-2d-single','bubble-2d-flow','bubble-3d');
-  if (mode !== 'flat') body.classList.add('bubble-' + mode);
+  /* 清除遗留的旧 bubble mode class (老用户库可能存过 2d-single / 2d-flow / 3d) */
+  body.classList.remove('bubble-2d-single', 'bubble-2d-flow', 'bubble-3d');
 
-  var myC1   = d.bubble_my_color1    || '#667eea';
-  var myC2   = d.bubble_my_color2    || '#764ba2';
-  var otC1   = d.bubble_other_color1 || '#ffffff';
-  var otC2   = d.bubble_other_color2 || '#e8eeff';
-  var myTxt  = d.bubble_my_text      || '#ffffff';
-  var otTxt  = d.bubble_other_text   || '#333333';
-  var angle  = (parseInt(d.bubble_gradient_angle) || 135) + 'deg';
-  var t      = (parseFloat(d.bubble_3d_intensity) || 60) / 100;
+  var myC1  = d.bubble_my_color1    || '#667eea';
+  var otC1  = d.bubble_other_color1 || '#ffffff';
+  var myTxt = d.bubble_my_text      || '#ffffff';
+  var otTxt = d.bubble_other_text   || '#333333';
 
-  root.setProperty('--bubble-my-c1',    myC1);
-  root.setProperty('--bubble-my-c2',    myC2);
-  root.setProperty('--bubble-other-c1', otC1);
-  root.setProperty('--bubble-other-c2', otC2);
-  root.setProperty('--bubble-my-color', myTxt);
-  root.setProperty('--bubble-other-color', otTxt);
-  root.setProperty('--bubble-angle',    angle);
-  root.setProperty('--bubble-3d-t',     String(t));
-
-  /* flat / 2d 模式: 直接用 c1 作为 bg 和 arrow */
-  if (mode === 'flat') {
-    root.setProperty('--bubble-my-bg',    myC1);
-    root.setProperty('--bubble-other-bg', otC1);
-  }
-  /* arrow 始终用 c1 (渐变起始色侧，视觉最接近) */
+  /* 气泡底色 (chat.css 的 fallback 链会读这些) */
+  root.setProperty('--bubble-my-c1',       myC1);
+  root.setProperty('--bubble-other-c1',    otC1);
+  root.setProperty('--bubble-my-bg',       myC1);
+  root.setProperty('--bubble-other-bg',    otC1);
+  /* 箭头颜色跟随底色 */
   root.setProperty('--bubble-my-arrow',    myC1);
   root.setProperty('--bubble-other-arrow', otC1);
-
-  /* 3D 模式: 计算高光/阴影 HSL 色 */
-  if (mode === '3d') {
-    var m1 = _hexToHSL(myC1), m2 = _hexToHSL(myC2);
-    root.setProperty('--b3d-my-hi', _hsl(m1.h, Math.max(m1.s-10,0), Math.min(m1.l+25*t, 97)));
-    root.setProperty('--b3d-my-sh', _hsl(m2.h+5, Math.min(m2.s+10,100), Math.max(m2.l-20*t, 5)));
-    var o1 = _hexToHSL(otC1), o2 = _hexToHSL(otC2);
-    root.setProperty('--b3d-ot-hi', _hsl(o1.h, Math.max(o1.s-10,0), Math.min(o1.l+15*t, 99)));
-    root.setProperty('--b3d-ot-sh', _hsl(o2.h+5, Math.min(o2.s+10,100), Math.max(o2.l-15*t, 10)));
-  }
+  /* 文字色 */
+  root.setProperty('--bubble-my-color',    myTxt);
+  root.setProperty('--bubble-other-color', otTxt);
 }
 
 function applyAppearance(d) {

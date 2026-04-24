@@ -6,7 +6,7 @@
 - 前端: public/ 下的纯 HTML/CSS/JS，Vue 通过 CDN 引入，无 webpack/vite
 - 后端: server/ 下按职责拆分 (config/database/middleware/routes/socket)
 - 部署: VPS + PM2 + Nginx，通过 update.sh 从 GitHub 拉取更新
-- 当前版本: v0.4.3
+- 当前版本: v0.4.6
 - 分支策略: main (稳定可部署) + feat/* 或 fix/* (开发中)
 
 ## 关键约束
@@ -61,11 +61,11 @@
 | 重置 + 全局变量 | base.css |
 | 登录页 | login.css |
 | 三栏布局 + 侧边栏 + 成员面板 | layout.css |
-| 消息气泡 + 输入框 + 接龙卡片 + 动画 | chat.css |
+| 消息气泡 (扁平) + 输入框 + 接龙卡片 | chat.css |
 | 所有弹窗 | modals.css |
 | 管理员附件/墙纸库专用样式 | files-admin.css |
 | 响应式断点 | responsive.css |
-| App 质感增强 (动画/反馈/滚动条/safe-area) | app-polish.css |
+| App 质感增强 (反馈/滚动条/safe-area) | app-polish.css |
 
 ### 部署/运维
 | 用途 | 文件 |

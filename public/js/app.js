@@ -28,16 +28,11 @@ const App = {
     const chainDesc = ref('');
     const msgListKey = ref(0);
 
-    /* ===== Animation & Effects ===== */
-    const animOn = ref(localStorage.getItem('tc_anim') !== '0');
+    /* ===== Emoji / Plus menu ===== */
     const showEmojiPicker = ref(false);
     const showPlusMenu = ref(false);
     const emojiTab = ref('face');
 
-    function applyEffectClasses() {
-      document.body.classList.toggle('anim-on', animOn.value);
-    }
-    function toggleAnim(v) { animOn.value = v; localStorage.setItem('tc_anim', v ? '1' : '0'); applyEffectClasses(); }
     function insertEmoji(code) { msgInput.value += code; showEmojiPicker.value = false; const ta = document.querySelector('.input-area textarea'); if (ta) ta.focus(); }
 
     /* Emoji picker 数据来自 EmojiRegistry */
@@ -322,8 +317,8 @@ const App = {
       store, msgStore, API, esc, fmtTime, fmtSize, avatarUrl, sanitize,
       togglePush, checkPush,
       mentionShow, mentionList, mentionIdx, selectMention,
-      animOn, showEmojiPicker, showPlusMenu, emojiTab,
-      toggleAnim, insertEmoji, applyEffectClasses,
+      showEmojiPicker, showPlusMenu, emojiTab,
+      insertEmoji,
       emojiCategories, emojiByCategory,
       isRecording, recordSec, startRecording, stopRecording, cancelRecording, fmtDuration, VOICE_MAX_SEC
     };
@@ -468,7 +463,7 @@ const App = {
 </div>
 <div v-if="ctxMenu" class="msg-menu" :style="{left:ctxMenu.x+'px',top:ctxMenu.y+'px'}"><div class="menu-item" @click="setReply(ctxMenu.msg)">💬 引用回复</div><div v-if="store.isAdmin" class="menu-item menu-item-danger" @click="doDeleteSingleMsg(ctxMenu.msg)">🗑️ 删除此消息</div></div>
 <div v-if="currentModal==='imagePreview'" class="image-modal" @click="currentModal=''"><img :src="modalData.src" alt="预览"></div>
-<div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div class="section"><h4>✨ 动画效果</h4><div class="anim-toggles"><div class="anim-toggle-row"><span>消息动画 (果冻滑入 & 水波)</span><label class="toggle-switch"><input type="checkbox" :checked="animOn" @change="toggleAnim($event.target.checked)"><span class="slider"></span></label></div></div></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="openAppearance()">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="openFileMgmt()">📎 附件管理</button><button class="success" @click="openBgLibrary()">🖼️ 墙纸/视频库</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
+<div v-if="currentModal==='settings'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>设置</h3><div class="section"><h4>🔔 推送通知</h4><p id="pushInfo" style="font-size:13px;color:#666">检测中...</p><button id="pushBtn" style="display:none" @click="doPushToggle()">开启推送</button></div><div class="section"><h4>上传头像</h4><div class="avatar-upload"><img class="avatar-preview" :src="avatarUrl(store.avatar)" alt=""><input type="file" accept="image/*" hidden ref="avatarFileInput" @change="doAvatarUpload($event)"><button @click="$refs.avatarFileInput.click()">选择图片</button><p id="avatarMsg" style="font-size:13px"></p></div></div><div class="section"><h4>修改密码</h4><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码 (至少6位)"><button @click="doChangePwd()">确认修改</button><p id="pwdMsg" style="font-size:13px"></p></div><div v-if="store.isAdmin" class="section"><h4>管理功能</h4><div style="margin-bottom:10px"><label class="field-label">消息时区</label><select id="tzSel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px" @change="doSaveTz()"><option v-for="tz in tzList" :key="tz.v" :value="tz.v" :selected="store.timezone===tz.v">{{tz.l}}</option></select></div><button class="success" @click="currentModal='notice'">📌 置顶通知</button><button class="success" @click="openAppearance()">🎨 外观定制</button><button class="success" @click="currentModal='userMgmt';loadUsers()">👥 用户管理</button><button class="success" @click="currentModal='channelMgmt';loadAllChannels()">📺 频道管理</button><button class="success" @click="openFileMgmt()">📎 附件管理</button><button class="success" @click="openBgLibrary()">🖼️ 墙纸/视频库</button><button class="success" @click="doToggleReg()">📝 {{store.regOpen?'关闭':'开放'}}注册</button><button class="success" @click="currentModal='backup'">💾 备份/还原</button><button class="danger" @click="currentModal='deleteMsg'">🗑️ 删除记录</button></div><button class="close-btn" @click="currentModal=''">关闭</button></div></div>
 <div v-if="currentModal==='channelMgmt'" class="modal-overlay" @click.self="currentModal=''"><div class="modal"><h3>📺 频道管理</h3><div class="section"><h4>新建频道</h4><input id="newChName" type="text" placeholder="频道名称"><input id="newChDesc" type="text" placeholder="频道描述 (选填)"><label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px"><input type="checkbox" id="newChPrivate"> 私有频道</label><button @click="doCreateChannel()">创建频道</button><p id="chCreateMsg" style="font-size:13px"></p></div><div class="section"><h4>已有频道</h4><div v-for="ch in modalData.allChannels||[]" :key="ch.id" class="ch-mgmt-item"><div class="ch-info"><div class="ch-name">{{ch.is_private?'🔒':''}} {{ch.name}}</div><div class="ch-meta">{{ch.description||'无描述'}} · {{ch._memberCount||0}}人</div></div><button style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#667eea" @click="openChannelPerm(ch)">权限</button><button v-if="!ch.is_default" style="width:auto;padding:6px 10px;font-size:12px;margin:0;background:#dc2626" @click="doDeleteChannel(ch)">删除</button></div></div><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
 <div v-if="currentModal==='channelPerm'" class="modal-overlay" @click.self="currentModal='channelMgmt'"><div class="modal"><h3>🔐 频道权限: {{modalData.permChannel?.name}}</h3><div class="section"><h4>添加成员</h4><select id="addMemberSel" style="width:70%;display:inline-block"><option v-for="u in modalData.nonMembers||[]" :key="u.username" :value="u.username">{{u.nickname||u.username}}</option></select><button style="width:28%;display:inline-block;margin-left:2%" @click="doAddMember()">添加</button></div><div class="section"><h4>当前成员</h4><div class="ch-perm-grid"><div v-for="m in modalData.permMembers||[]" :key="m.user_id" class="ch-perm-row"><span class="perm-user">{{m.nickname||m.username}}</span><select :value="m.role" @change="doChangeRole(m,$event.target.value)"><option value="owner">所有者</option><option value="admin">管理员</option><option value="member">成员</option><option value="viewer">只读</option></select><button style="width:auto;padding:4px 8px;font-size:11px;margin:0;background:#dc2626" @click="doRemoveMember(m)">移除</button></div></div></div><button class="close-btn" @click="currentModal='channelMgmt'">返回</button></div></div>
 <div v-if="currentModal==='notice'" class="modal-overlay" @click.self="currentModal='settings'"><div class="modal"><h3>📌 置顶通知</h3><textarea id="noticeInput" rows="4" :value="store.notice.content||''" placeholder="输入通知内容..."></textarea><button @click="doSaveNotice()">发布</button><button class="danger" @click="doClearNotice()">撤下</button><p id="noticeMsg" style="font-size:13px;text-align:center"></p><button class="close-btn" @click="currentModal='settings'">返回</button></div></div>
@@ -740,38 +735,18 @@ const App = {
       </div>
     </div>
 
-    <!-- ===== 气泡样式 ===== -->
+    <!-- ===== 气泡颜色 ===== -->
     <div class="section">
-      <h4>💬 气泡样式</h4>
-
-      <label class="field-label">效果模式</label>
-      <div class="radio-group">
-        <label><input type="radio" value="flat"       v-model="modalData.appDraft.bubble_style"> 扁平</label>
-        <label><input type="radio" value="2d-single"  v-model="modalData.appDraft.bubble_style"> 2D 渐变</label>
-        <label><input type="radio" value="2d-flow"    v-model="modalData.appDraft.bubble_style"> 2D 流式渐变</label>
-        <label><input type="radio" value="3d"         v-model="modalData.appDraft.bubble_style"> 3D 宫崎骏</label>
-      </div>
-      <p v-if="modalData.appDraft.bubble_style==='2d-single'" class="hint">每个气泡独立渐变，可调角度。</p>
-      <p v-if="modalData.appDraft.bubble_style==='2d-flow'" class="hint">颜色从上到下跨气泡渐变，整屏形成色彩过渡。</p>
-      <p v-if="modalData.appDraft.bubble_style==='3d'" class="hint">卡通立体风，宫崎骏式顶光 + 高光 + 软阴影。</p>
+      <h4>💬 气泡颜色</h4>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
-        <!-- 我的气泡 -->
         <div>
-          <label class="field-label">我的气泡 · 主色</label>
+          <label class="field-label">我的气泡 · 底色</label>
           <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color1"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_color1}}</span></div>
         </div>
         <div>
-          <label class="field-label">我的气泡 · 副色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_my_color2"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_my_color2}}</span></div>
-        </div>
-        <div>
-          <label class="field-label">对方气泡 · 主色</label>
+          <label class="field-label">对方气泡 · 底色</label>
           <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color1"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_color1}}</span></div>
-        </div>
-        <div>
-          <label class="field-label">对方气泡 · 副色</label>
-          <div class="color-row"><input type="color" v-model="modalData.appDraft.bubble_other_color2"><span style="font-size:12px;color:#888">{{modalData.appDraft.bubble_other_color2}}</span></div>
         </div>
         <div>
           <label class="field-label">我的气泡 · 文字色</label>
@@ -783,80 +758,15 @@ const App = {
         </div>
       </div>
 
-      <div v-if="modalData.appDraft.bubble_style==='2d-single'" style="margin-top:12px">
-        <label class="field-label">渐变角度: {{modalData.appDraft.bubble_gradient_angle}}°</label>
-        <input type="range" min="0" max="360" step="5" v-model.number="modalData.appDraft.bubble_gradient_angle" style="width:100%">
-      </div>
-
-      <div v-if="modalData.appDraft.bubble_style==='3d'" style="margin-top:12px">
-        <label class="field-label">3D 强度: {{modalData.appDraft.bubble_3d_intensity}}%</label>
-        <input type="range" min="0" max="100" step="5" v-model.number="modalData.appDraft.bubble_3d_intensity" style="width:100%">
-      </div>
-
       <!-- 气泡效果实时小预览 -->
       <div style="margin-top:14px;padding:14px;background:#f0f2f5;border-radius:12px;display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;gap:8px;align-items:flex-start">
           <div style="width:28px;height:28px;border-radius:50%;background:#e8eeff;flex-shrink:0"></div>
-          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">大家好！这是对方的气泡效果</div>
+          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">大家好！这是对方的气泡</div>
         </div>
         <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse">
           <div style="width:28px;height:28px;border-radius:50%;background:#667eea;flex-shrink:0"></div>
-          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">你好！这是我的气泡效果 🎨</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:flex-start">
-          <div style="width:28px;height:28px;border-radius:50%;background:#fce7f3;flex-shrink:0"></div>
-          <div style="border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('other')">看起来效果不错呢 ✨</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse">
-          <div style="width:28px;height:28px;border-radius:50%;background:#667eea;flex-shrink:0"></div>
-          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">太好了 👍</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== 视差壁纸 (实验性 - 接口预留) ===== -->
-    <div class="section parallax-section">
-      <h4>📱 视差壁纸 (Parallax / Perspective) <span class="exp-tag">实验性</span></h4>
-      <p class="hint">
-        启用后, 上方设置的图片/视频背景会随手机姿态轻微位移, 模拟透视景深。
-        此功能后期会扩展为多图层穿透视差; 当前为接口预留, 同时已可工作于单层背景。
-      </p>
-
-      <label class="parallax-toggle">
-        <input type="checkbox" v-model="modalData.appDraft.parallax_enabled">
-        <span>启用陀螺仪视差</span>
-      </label>
-
-      <label class="field-label">视差强度: {{modalData.appDraft.parallax_strength}}</label>
-      <input type="range" min="0" max="100" step="1" v-model.number="modalData.appDraft.parallax_strength" style="width:100%">
-
-      <div class="gyro-box">
-        <div class="gyro-status" :class="{warn:!modalData.gyroState.supported}">
-          {{modalData.gyroState.msg}}
-        </div>
-
-        <div v-if="modalData.gyroState.live" class="gyro-live">
-          实时姿态: β={{modalData.gyroState.live.beta?.toFixed(1)}}°
-          γ={{modalData.gyroState.live.gamma?.toFixed(1)}}°
-          α={{modalData.gyroState.live.alpha?.toFixed(1)}}°
-        </div>
-
-        <div v-if="modalData.gyroState.baselineLocal" class="gyro-baseline">
-          已采基线: β={{modalData.gyroState.baselineLocal.beta.toFixed(2)}}°
-          γ={{modalData.gyroState.baselineLocal.gamma.toFixed(2)}}°
-          ({{modalData.gyroState.baselineLocal.samples}} 样本)
-        </div>
-
-        <div class="gyro-actions">
-          <button v-if="modalData.gyroState.needsPerm && !modalData.gyroState.permGranted"
-                  class="secondary" @click="doRequestGyroPerm()">🔓 授权陀螺仪</button>
-          <button :disabled="!modalData.gyroState.supported || modalData.gyroState.capturing"
-                  @click="doStartGyroCapture()">
-            {{modalData.gyroState.capturing?'📡 采集中…':'📍 校准 (放平 2 秒)'}}
-          </button>
-          <button v-if="modalData.gyroState.baselineLocal" class="success" @click="doSaveGyroBaseline()">
-            💾 仅保存基线
-          </button>
+          <div style="border-radius:14px 4px 14px 14px;padding:8px 12px;font-size:13px;max-width:70%;line-height:1.4" :style="bubblePreview('my')">你好！这是我的气泡 🎨</div>
         </div>
       </div>
     </div>
@@ -1026,30 +936,13 @@ const App = {
       }
     },
 
-    /* 外观预览: 气泡小样样式 */
+    /* 外观预览: 气泡小样样式 (扁平化后只需要底色+文字色) */
     bubblePreview(who) {
       var a = (this.modalData && this.modalData.appDraft) || {};
-      var mode = a.bubble_style || 'flat';
       var isMy = who === 'my';
-      var c1 = isMy ? (a.bubble_my_color1 || '#667eea') : (a.bubble_other_color1 || '#ffffff');
-      var c2 = isMy ? (a.bubble_my_color2 || '#764ba2') : (a.bubble_other_color2 || '#e8eeff');
-      var txt = isMy ? (a.bubble_my_text || '#ffffff') : (a.bubble_other_text || '#333333');
-      var angle = (parseInt(a.bubble_gradient_angle) || 135) + 'deg';
-      var s = { color: txt };
-      if (mode === 'flat') {
-        s.background = c1;
-      } else if (mode === '2d-single') {
-        s.background = 'linear-gradient(' + angle + ',' + c1 + ',' + c2 + ')';
-      } else if (mode === '2d-flow') {
-        s.background = 'linear-gradient(180deg,' + c1 + ',' + c2 + ')';
-      } else if (mode === '3d') {
-        var t = (parseInt(a.bubble_3d_intensity) || 60) / 100;
-        s.background = 'linear-gradient(160deg,' + c1 + ' 0%,' + c2 + ' 100%)';
-        s.boxShadow = 'inset 0 ' + (2*t) + 'px ' + (4*t) + 'px rgba(255,255,255,' + (.35*t) + '), inset 0 -' + (2*t) + 'px ' + (6*t) + 'px rgba(0,0,0,' + (.12*t) + '), 0 ' + (2*t) + 'px ' + (6*t) + 'px rgba(0,0,0,' + (.08*t) + ')';
-        s.borderTop = '.5px solid rgba(255,255,255,' + (.4*t) + ')';
-        s.borderBottom = '.5px solid rgba(0,0,0,' + (.08*t) + ')';
-      }
-      return s;
+      var c1  = isMy ? (a.bubble_my_color1 || '#667eea') : (a.bubble_other_color1 || '#ffffff');
+      var txt = isMy ? (a.bubble_my_text   || '#ffffff') : (a.bubble_other_text   || '#333333');
+      return { background: c1, color: txt };
     },
 
     joinChainById(id) {
@@ -1073,7 +966,6 @@ const App = {
   },
 
   async mounted() {
-    this.applyEffectClasses();
     this.$watch(() => this.currentModal, async (v) => {
       if (v === 'settings') {
         await Vue.nextTick();
