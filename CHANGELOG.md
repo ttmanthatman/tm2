@@ -2,6 +2,22 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [v0.5.0] - 2026-04-24
+### 新增
+- AI 角色功能 MVP：通过 DeepSeek API 让 AI 在聊天室以"虚拟用户"身份发言
+- 每角色可配置：身份/性格/说话风格/兴趣/禁区/上线时间段/频道范围/预算
+- 触发方式：被动 @ 提及（@username、角色昵称、自定义关键词）
+- 防循环：AI 不响应 is_ai=1 用户的消息
+- 日调用 token 预算硬上限，超额静默
+- 每角色每分钟最多 N 条回复（默认 3）
+- 独立管理页 /ai-admin.html：列表/创建/编辑 JSON/启停/删除/测试/日志/上传头像
+- 新表 ai_characters、ai_logs；users 新增 is_ai 字段
+### 其他
+- /api/messages 和 /api/users/basic 返回值新增 is_ai 字段（为未来前端 🤖 徽章铺路）
+### 部署说明
+- 在 VPS 项目根目录创建文件 .deepseek_key（仅粘贴 key，无前缀），chmod 600
+- pm2 restart 后通过 /ai-admin.html 配置角色
+
 ### v0.4.10
 - 修复: 移动端浏览器点击输入框触发页面缩放 (textarea font-size → 16px)
 - 修复: 移动端键盘弹出时聊天界面整体上移 (body position:fixed + scrollTo 兜底)
