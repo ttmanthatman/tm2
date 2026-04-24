@@ -2,7 +2,10 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
-## v0.4.9 (2026-04-24)
+### v0.4.10
+- 修复: 移动端浏览器点击输入框触发页面缩放 (textarea font-size → 16px)
+- 修复: 移动端键盘弹出时聊天界面整体上移 (body position:fixed + scrollTo 兜底)
+- 修复: PWA 双击聊天背景导致界面上移 (touchend 双击拦截)## v0.4.9 (2026-04-24)
 
 ### Fixed
 - 重做 v0.4.8 的 iOS 底部留白修复。v0.4.8 在 body 上加
