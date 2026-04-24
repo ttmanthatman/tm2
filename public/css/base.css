@@ -1,6 +1,6 @@
 /* ===== TeamChat Base Styles ===== */
 *{margin:0;padding:0;box-sizing:border-box}
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;height:var(--app-vh,100dvh);overflow:hidden;overscroll-behavior:none}
-#app{height:var(--app-vh,100dvh);display:flex;flex-direction:column;touch-action:pan-y}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;height:var(--app-vh,100dvh);overflow:hidden;overscroll-behavior:none;position:fixed;width:100%;top:0;left:0}
+#app{height:var(--app-vh,100dvh);display:flex;flex-direction:column;touch-action:manipulation}
 .hidden{display:none!important}

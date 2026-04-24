@@ -1020,9 +1020,10 @@ const App = {
    用 visualViewport 精确追踪当前可见高度, 写入 CSS 变量 --app-vh,
    让 body / #app / .app-layout 的高度跟随软键盘/浏览器 UI 实时回弹,
    避免 iOS 上 100dvh 不考虑键盘产生的底部留白。
-   故意不做任何 scrollTo / focusout 干预 —— 上一版因此踩坑:
-   只要 body 跟可见区等高, iOS 就不会再去推 layout viewport, 
-   不需要额外补偿。 */
+
+   v0.4.10: body 已改为 position:fixed，理论上文档不会被浏览器推动，
+   但 iOS 仍可能通过 visualViewport.offsetTop 偏移可见区域，
+   所以在每次 resize 时用 scrollTo(0,0) 兜底归零。 */
 (function() {
   var root = document.documentElement;
   var vv = window.visualViewport;
@@ -1030,6 +1031,10 @@ const App = {
   function apply() {
     var h = (vv && vv.height) || window.innerHeight;
     root.style.setProperty('--app-vh', h + 'px');
+    /* 兜底: 无论何种原因导致文档被滚动，都归零 */
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
   }
 
   apply();
@@ -1037,7 +1042,28 @@ const App = {
   window.addEventListener('orientationchange', function() { setTimeout(apply, 150); });
   if (vv) {
     vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', function() {
+      /* iOS 键盘弹出时可能产生 offsetTop 偏移，强制归零 */
+      if (vv.offsetTop > 0) window.scrollTo(0, 0);
+    });
   }
+})();
+
+/* ===== 双击防抖 — 阻止 PWA 下双击背景导致 viewport 上移 ===== */
+(function() {
+  var lastTap = 0;
+  document.addEventListener('touchend', function(e) {
+    var now = Date.now();
+    if (now - lastTap < 300) {
+      /* 双击：如果目标不是输入框 / 链接 / 按钮，阻止默认行为 */
+      var tag = e.target.tagName;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'A' && tag !== 'BUTTON' &&
+          !e.target.closest('a') && !e.target.closest('button') && !e.target.closest('.msg-content')) {
+        e.preventDefault();
+      }
+    }
+    lastTap = now;
+  }, { passive: false });
 })();
 
 /* ===== Close emoji picker on outside click ===== */
