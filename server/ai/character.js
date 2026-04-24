@@ -2,7 +2,7 @@
  * AI 角色运行时
  * - 检查上线时间段
  * - 拼接 system prompt
- * - 从历史消息构造 context
+ * - 从历史消息构造 context (v0.5.5: 稳定 prefix, 让 DeepSeek 缓存命中)
  * - 调 DeepSeek
  * - 写消息 + emit socket
  */
@@ -81,21 +81,25 @@ function buildSystemPrompt(config) {
   return lines.join("\n");
 }
 
-/* ===== 从历史消息构造 DeepSeek messages 数组 ===== */
-function buildContext(aiUserId, channelId, maxMessages) {
+/* ===== 从历史消息构造 DeepSeek messages 数组 =====
+ * v0.5.5: 用 "window_start 以后的所有消息" 而不是 "最新 N 条",
+ *   保证 context[0] 稳定, DeepSeek prefix cache 能层层命中.
+ * 由调用方传入 windowStart (最古老消息的 msg id), 以及上限 hardLimit.
+ */
+function buildContext(aiUserId, channelId, windowStart, hardLimit) {
   const rows = db.prepare(`
     SELECT m.id, m.user_id, m.username, m.content, m.type, m.created_at,
            u.nickname, u.is_ai
     FROM messages m
     LEFT JOIN users u ON m.user_id = u.id
     WHERE m.channel_id = ?
+      AND m.id >= ?
       AND (m.type = 'text' OR m.type IS NULL OR m.type = '')
       AND m.content IS NOT NULL AND m.content != ''
       AND m.content NOT LIKE '[CHAIN]%'
-    ORDER BY m.id DESC
+    ORDER BY m.id ASC
     LIMIT ?
-  `).all(channelId, maxMessages);
-  rows.reverse();
+  `).all(channelId, windowStart || 0, hardLimit);
 
   const msgs = [];
   for (const r of rows) {
@@ -172,7 +176,34 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
 
   const systemPrompt = buildSystemPrompt(config);
   const maxCtx = (config.model && config.model.max_context_messages) || 20;
-  const contextMsgs = buildContext(aiUser.id, channelId, maxCtx);
+
+  /* ===== v0.5.5: 稳定 prefix 的上下文窗口 ===== */
+  /* 1. 读取这个角色的 window_start */
+  const wsRow = db.prepare("SELECT context_window_start FROM ai_characters WHERE id=?").get(character.id);
+  let windowStart = (wsRow && wsRow.context_window_start) || 0;
+
+  /* 2. 计算当前窗口内的消息数 */
+  const cntRow = db.prepare(
+    "SELECT COUNT(*) AS n FROM messages WHERE channel_id=? AND id >= ? AND (type='text' OR type IS NULL OR type='') AND content IS NOT NULL AND content != '' AND content NOT LIKE '[CHAIN]%'"
+  ).get(channelId, windowStart);
+  const currentCount = (cntRow && cntRow.n) || 0;
+
+  /* 3. 若超出 maxCtx * 1.5, 前推 window_start 到最新 maxCtx 条的起点 */
+  /*    —— 这一次调用会是 miss (重建缓存), 之后的调用重新累积命中率 */
+  if (currentCount > maxCtx * 1.5) {
+    const startRow = db.prepare(
+      "SELECT id FROM messages WHERE channel_id=? AND (type='text' OR type IS NULL OR type='') AND content IS NOT NULL AND content != '' AND content NOT LIKE '[CHAIN]%' ORDER BY id DESC LIMIT 1 OFFSET ?"
+    ).get(channelId, maxCtx - 1);
+    if (startRow && startRow.id) {
+      windowStart = startRow.id;
+      db.prepare("UPDATE ai_characters SET context_window_start=? WHERE id=?")
+        .run(windowStart, character.id);
+      console.log("[AI] char=" + character.id + " ch=" + channelId + " window_start 前推到 msg " + windowStart);
+    }
+  }
+
+  /* 4. 构造 context (hardLimit 给 maxCtx*2 作为防御上限, 正常用不到) */
+  const contextMsgs = buildContext(aiUser.id, channelId, windowStart, maxCtx * 2);
 
   /* 如果历史里最新一条就是这个 AI 自己的发言，跳过以防自说自话 */
   if (contextMsgs.length && contextMsgs[contextMsgs.length - 1].role === "assistant") {
@@ -185,7 +216,7 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
   /* v0.5.4 debug: 打印 messages 数组, 用于排查缓存不命中 */
   if (process.env.AI_DEBUG_MESSAGES === "1" || getSetting("ai_debug_messages") === "1") {
     try {
-      console.log("========== [AI DEBUG] char=" + character.id + " ch=" + channelId + " ==========");
+      console.log("========== [AI DEBUG] char=" + character.id + " ch=" + channelId + " window_start=" + windowStart + " ==========");
       console.log("system (" + systemPrompt.length + " chars):");
       console.log(systemPrompt);
       console.log("--- context (" + contextMsgs.length + " msgs) ---");

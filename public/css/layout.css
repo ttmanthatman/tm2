@@ -50,3 +50,4 @@
 .member-item .member-role{font-size:11px;color:#999;background:#f0f0f0;padding:1px 6px;border-radius:4px}
 .member-item .online-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
 .member-item .online-dot.on{background:#22c55e}
+.member-item .ai-tag{display:inline-block;font-size:10px;color:#667eea;background:#eef;padding:1px 5px;border-radius:3px;margin-right:4px;vertical-align:middle;font-weight:500}

@@ -80,6 +80,11 @@ function initSocket() {
       if (ch && ch.msgs) ch.msgs = ch.msgs.filter(m => !ids.has(m.id));
     });
   });
+
+  /* v0.5.6: AI 角色增删改 -> 重新加载全员列表 */
+  socket.on('usersChanged', () => { if (typeof loadAllUsers === 'function') loadAllUsers(); });
+  /* v0.5.6: 每分钟 tick, 更新 AI 在线状态 */
+  socket.on('aiStatusTick', () => { if (typeof loadAllUsers === 'function') loadAllUsers(); });
 }
 
 function showKicked(msg) {

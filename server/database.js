@@ -90,6 +90,7 @@ const migrations = [
   "ALTER TABLE users ADD COLUMN is_ai INTEGER DEFAULT 0",
   "ALTER TABLE ai_logs ADD COLUMN cache_hit_tokens INTEGER DEFAULT 0",
   "ALTER TABLE ai_logs ADD COLUMN cache_miss_tokens INTEGER DEFAULT 0",
+  "ALTER TABLE ai_characters ADD COLUMN context_window_start INTEGER DEFAULT 0",
 ];
 migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

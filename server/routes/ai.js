@@ -18,6 +18,14 @@ function maskKey(k) {
   return k.substring(0, 4) + "****" + k.substring(k.length - 4);
 }
 
+/* v0.5.6: 把更新广播出去, 让所有客户端刷新用户列表 */
+function broadcastUsersChanged(req, reason) {
+  try {
+    const io = req.app.get("io");
+    if (io) io.emit("usersChanged", { reason: reason || "ai_changed" });
+  } catch(e) {}
+}
+
 const router = express.Router();
 
 /* ===== 校验 & 默认值 ===== */
@@ -51,7 +59,8 @@ function fillDefaults(c) {
 router.get("/ai/characters", authMiddleware, adminMiddleware, (req, res) => {
   const rows = db.prepare(`
     SELECT ac.id, ac.user_id, ac.config_json, ac.state_json, ac.enabled,
-           ac.tokens_used_today, ac.budget_reset_at, ac.created_at, ac.updated_at,
+           ac.tokens_used_today, ac.budget_reset_at, ac.context_window_start,
+           ac.created_at, ac.updated_at,
            u.username, u.nickname, u.avatar
     FROM ai_characters ac
     JOIN users u ON ac.user_id = u.id
@@ -71,12 +80,13 @@ router.get("/ai/characters", authMiddleware, adminMiddleware, (req, res) => {
       enabled: !!r.enabled,
       tokens_used_today: r.tokens_used_today,
       budget_reset_at: r.budget_reset_at,
+      context_window_start: r.context_window_start || 0,
       created_at: r.created_at,
       updated_at: r.updated_at,
       is_online_now: isOnline(config.schedule)
     };
   });
-const curKey = getCurrentKey();
+  const curKey = getCurrentKey();
   res.json({
     success: true,
     characters: list,
@@ -173,12 +183,17 @@ router.post("/ai/characters", authMiddleware, adminMiddleware, async (req, res) 
   const insMember = db.prepare("INSERT OR IGNORE INTO channel_members (channel_id, user_id, role) VALUES (?,?,'member')");
   pubChs.forEach(c => insMember.run(c.id, newUserId));
 
+  /* v0.5.5: 初始 context_window_start = 当前最新 msg.id + 1 (新角色不背历史包袱) */
+  const maxMsgRow = db.prepare("SELECT COALESCE(MAX(id), 0) AS mid FROM messages").get();
+  const initWindowStart = (maxMsgRow && maxMsgRow.mid ? maxMsgRow.mid : 0) + 1;
+
   const now = new Date().toISOString();
   const acIns = db.prepare(
-    "INSERT INTO ai_characters (user_id, config_json, state_json, enabled, budget_reset_at, created_at, updated_at) VALUES (?,?,?,1,?,?,?)"
-  ).run(newUserId, JSON.stringify(cfg), "{}", now, now, now);
+    "INSERT INTO ai_characters (user_id, config_json, state_json, enabled, context_window_start, budget_reset_at, created_at, updated_at) VALUES (?,?,?,1,?,?,?,?)"
+  ).run(newUserId, JSON.stringify(cfg), "{}", initWindowStart, now, now, now);
 
   invalidateCache();
+  broadcastUsersChanged(req, "ai_created");
   res.json({ success: true, id: acIns.lastInsertRowid, user_id: newUserId });
 });
 
@@ -205,6 +220,7 @@ router.put("/ai/characters/:id", authMiddleware, adminMiddleware, (req, res) => 
   }
 
   invalidateCache();
+  broadcastUsersChanged(req, "ai_updated");
   res.json({ success: true });
 });
 
@@ -216,6 +232,7 @@ router.delete("/ai/characters/:id", authMiddleware, adminMiddleware, (req, res) 
   db.prepare("DELETE FROM ai_characters WHERE id=?").run(id);
   db.prepare("DELETE FROM users WHERE id=? AND is_ai=1").run(row.user_id);
   invalidateCache();
+  broadcastUsersChanged(req, "ai_deleted");
   res.json({ success: true });
 });
 
@@ -227,6 +244,7 @@ router.post("/ai/characters/:id/avatar", authMiddleware, adminMiddleware, upload
   if (!row) return res.json({ success: false, message: "角色不存在" });
   db.prepare("UPDATE users SET avatar=? WHERE id=?").run(req.file.filename, row.user_id);
   invalidateCache();
+  broadcastUsersChanged(req, "ai_avatar");
   res.json({ success: true, avatar: req.file.filename });
 });
 
@@ -236,6 +254,18 @@ router.get("/ai/characters/:id/logs", authMiddleware, adminMiddleware, (req, res
   const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 500);
   const rows = db.prepare("SELECT * FROM ai_logs WHERE character_id=? ORDER BY id DESC LIMIT ?").all(id, limit);
   res.json({ success: true, logs: rows });
+});
+
+/* ===== 重置对话上下文 (前推 window_start 到当前最新) ===== */
+router.post("/ai/characters/:id/reset-context", authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id);
+  const row = db.prepare("SELECT id FROM ai_characters WHERE id=?").get(id);
+  if (!row) return res.json({ success: false, message: "角色不存在" });
+  const maxMsgRow = db.prepare("SELECT COALESCE(MAX(id), 0) AS mid FROM messages").get();
+  const newStart = (maxMsgRow && maxMsgRow.mid ? maxMsgRow.mid : 0) + 1;
+  db.prepare("UPDATE ai_characters SET context_window_start=?, updated_at=? WHERE id=?")
+    .run(newStart, new Date().toISOString(), id);
+  res.json({ success: true, window_start: newStart });
 });
 
 /* ===== 手动测试发言 ===== */
