@@ -93,8 +93,16 @@ router.get("/ai/config", authMiddleware, adminMiddleware, (req, res) => {
     success: true,
     ai_feature_enabled: !!AI_FEATURE_ENABLED,
     key_set: !!curKey,
-    key_masked: maskKey(curKey)
+    key_masked: maskKey(curKey),
+    debug_messages: getSetting("ai_debug_messages") === "1"
   });
+});
+
+/* ===== 开关 debug 日志 ===== */
+router.post("/ai/config/debug", authMiddleware, adminMiddleware, (req, res) => {
+  const on = !!(req.body && req.body.enabled);
+  setSetting("ai_debug_messages", on ? "1" : "0");
+  res.json({ success: true, debug_messages: on });
 });
 
 /* ===== 设置 / 清空 DeepSeek API Key ===== */
