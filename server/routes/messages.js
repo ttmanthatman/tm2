@@ -20,7 +20,7 @@ router.get("/messages", authMiddleware, (req, res) => {
   }
 
   const pl = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
-  let sql = "SELECT m.*,u.nickname,u.avatar FROM messages m JOIN users u ON m.user_id=u.id WHERE m.channel_id=?";
+    let sql = "SELECT m.*,u.nickname,u.avatar,u.is_ai FROM messages m JOIN users u ON m.user_id=u.id WHERE m.channel_id=?";
   const params = [chId];
 
   if (before) {

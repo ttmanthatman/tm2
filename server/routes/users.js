@@ -11,7 +11,7 @@ const router = express.Router();
 
 /* ===== 全员基础信息 (供 @提及) ===== */
 router.get("/users/basic", authMiddleware, (req, res) => {
-  res.json(db.prepare("SELECT username,nickname,avatar FROM users").all());
+  res.json(db.prepare("SELECT username,nickname,avatar,is_ai FROM users").all());
 });
 
 /* ===== 用户列表 ===== */

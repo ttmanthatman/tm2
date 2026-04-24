@@ -11,21 +11,17 @@ const path = require("path");
 const { PORT, UPLOAD_DIR, AVATAR_DIR, BG_DIR, VOICE_DIR } = require("./config");
 const { db } = require("./database");
 
-/* ===== Express App ===== */
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
-/* 将 io 和 onlineUsers 挂载到 app，供路由使用 */
 const { setupSocket, onlineUsers } = require("./socket");
 app.set("io", io);
 app.set("onlineUsers", onlineUsers);
 
-/* ===== 全局中间件 ===== */
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 
-/* ===== 静态文件 (特殊缓存策略) ===== */
 app.get("/sw.js", (req, res) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Content-Type", "application/javascript");
@@ -42,7 +38,6 @@ app.use("/avatars", express.static(AVATAR_DIR));
 app.use("/backgrounds", express.static(BG_DIR));
 app.use("/voices", express.static(VOICE_DIR));
 
-/* ===== API 路由 ===== */
 app.use("/api", require("./routes/auth"));
 app.use("/api", require("./routes/channels"));
 app.use("/api", require("./routes/messages"));
@@ -51,8 +46,8 @@ app.use("/api", require("./routes/users"));
 app.use("/api", require("./routes/push"));
 app.use("/api", require("./routes/backup"));
 app.use("/api", require("./routes/admin-files"));
+app.use("/api", require("./routes/ai")); /* v0.5.0 */
 
-/* ===== SPA 回退 ===== */
 app.get("*", (req, res) => {
   if (!req.path.startsWith("/api/")) {
     res.sendFile(path.join(__dirname, "..", "public", "index.html"));
@@ -61,17 +56,14 @@ app.get("*", (req, res) => {
   }
 });
 
-/* ===== Socket.IO ===== */
 setupSocket(io);
 
-/* ===== 优雅退出 ===== */
 process.on("SIGTERM", () => {
   io.close();
   server.close(() => { db.close(); process.exit(0); });
   setTimeout(() => process.exit(1), 5000);
 });
 
-/* ===== 启动 ===== */
 server.listen(PORT, () => {
   console.log("TeamChat v9 (模块化) 服务器运行在端口 " + PORT);
 });

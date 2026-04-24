@@ -1,0 +1,201 @@
+/**
+ * AI 角色管理路由 (全部需管理员权限)
+ */
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const { db } = require("../database");
+const { authMiddleware, adminMiddleware } = require("../middleware");
+const { uploadAvatar } = require("../upload");
+const { invalidateCache } = require("../ai/trigger");
+const { isOnline, runReply } = require("../ai/character");
+const { AI_ENABLED, DEEPSEEK_API_KEY } = require("../config");
+
+const router = express.Router();
+
+/* ===== 校验 & 默认值 ===== */
+function validateConfig(c) {
+  const errs = [];
+  if (!c || typeof c !== "object") { errs.push("config 必须是对象"); return errs; }
+  if (!c.name || typeof c.name !== "string") errs.push("缺少 name");
+  if (c.channels != null && !Array.isArray(c.channels)) errs.push("channels 必须是数组");
+  if (c.schedule && c.schedule.online_windows && !Array.isArray(c.schedule.online_windows)) {
+    errs.push("schedule.online_windows 必须是数组");
+  }
+  if (c.trigger && c.trigger.mention_keywords && !Array.isArray(c.trigger.mention_keywords)) {
+    errs.push("trigger.mention_keywords 必须是数组");
+  }
+  return errs;
+}
+function fillDefaults(c) {
+  const d = {
+    name: "AI",
+    persona: {},
+    schedule: { timezone: "Asia/Shanghai", online_windows: [] },
+    trigger: { mode: "passive", mention_keywords: [], max_replies_per_minute: 3 },
+    channels: [],
+    model: { provider: "deepseek", name: "deepseek-chat", temperature: 0.8, max_context_messages: 20 },
+    budget: { daily_tokens: 50000, per_message_max_tokens: 500 }
+  };
+  return Object.assign(d, c);
+}
+
+/* ===== 列表 ===== */
+router.get("/ai/characters", authMiddleware, adminMiddleware, (req, res) => {
+  const rows = db.prepare(`
+    SELECT ac.id, ac.user_id, ac.config_json, ac.state_json, ac.enabled,
+           ac.tokens_used_today, ac.budget_reset_at, ac.created_at, ac.updated_at,
+           u.username, u.nickname, u.avatar
+    FROM ai_characters ac
+    JOIN users u ON ac.user_id = u.id
+    ORDER BY ac.id ASC
+  `).all();
+  const list = rows.map(r => {
+    let config = {}, state = {};
+    try { config = JSON.parse(r.config_json); } catch(e) {}
+    try { state = JSON.parse(r.state_json); } catch(e) {}
+    return {
+      id: r.id,
+      user_id: r.user_id,
+      username: r.username,
+      nickname: r.nickname,
+      avatar: r.avatar,
+      config, state,
+      enabled: !!r.enabled,
+      tokens_used_today: r.tokens_used_today,
+      budget_reset_at: r.budget_reset_at,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      is_online_now: isOnline(config.schedule)
+    };
+  });
+  res.json({
+    success: true,
+    characters: list,
+    ai_enabled: !!AI_ENABLED,
+    key_set: !!DEEPSEEK_API_KEY
+  });
+});
+
+/* ===== 创建 ===== */
+router.post("/ai/characters", authMiddleware, adminMiddleware, async (req, res) => {
+  const { username, config } = req.body;
+  if (!username || !/^[a-zA-Z0-9_.\-]+$/.test(username)) {
+    return res.json({ success: false, message: "username 非法 (只允许字母数字下划线和短横)" });
+  }
+  if (username.length > 40) return res.json({ success: false, message: "username 太长" });
+  if (db.prepare("SELECT id FROM users WHERE username=?").get(username)) {
+    return res.json({ success: false, message: "username 已存在 (人类或 AI 都不能重名)" });
+  }
+  const errs = validateConfig(config);
+  if (errs.length) return res.json({ success: false, message: errs.join("; ") });
+
+  const cfg = fillDefaults(config);
+  const nickname = cfg.name || username;
+  const fakePass = await bcrypt.hash(crypto.randomBytes(24).toString("hex"), 10);
+
+  const userIns = db.prepare(
+    "INSERT INTO users (username, password, nickname, avatar, is_admin, is_ai) VALUES (?,?,?,NULL,0,1)"
+  ).run(username, fakePass, nickname);
+  const newUserId = userIns.lastInsertRowid;
+
+  /* 加入所有公开频道 */
+  const pubChs = db.prepare("SELECT id FROM channels WHERE is_private=0").all();
+  const insMember = db.prepare("INSERT OR IGNORE INTO channel_members (channel_id, user_id, role) VALUES (?,?,'member')");
+  pubChs.forEach(c => insMember.run(c.id, newUserId));
+
+  const now = new Date().toISOString();
+  const acIns = db.prepare(
+    "INSERT INTO ai_characters (user_id, config_json, state_json, enabled, budget_reset_at, created_at, updated_at) VALUES (?,?,?,1,?,?,?)"
+  ).run(newUserId, JSON.stringify(cfg), "{}", now, now, now);
+
+  invalidateCache();
+  res.json({ success: true, id: acIns.lastInsertRowid, user_id: newUserId });
+});
+
+/* ===== 更新 (config / enabled) ===== */
+router.put("/ai/characters/:id", authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id);
+  const { config, enabled } = req.body;
+  const row = db.prepare("SELECT id, user_id FROM ai_characters WHERE id=?").get(id);
+  if (!row) return res.json({ success: false, message: "角色不存在" });
+
+  if (config) {
+    const errs = validateConfig(config);
+    if (errs.length) return res.json({ success: false, message: errs.join("; ") });
+    const cfg = fillDefaults(config);
+    db.prepare("UPDATE ai_characters SET config_json=?, updated_at=? WHERE id=?")
+      .run(JSON.stringify(cfg), new Date().toISOString(), id);
+    if (cfg.name) {
+      db.prepare("UPDATE users SET nickname=? WHERE id=?").run(cfg.name, row.user_id);
+    }
+  }
+  if (typeof enabled === "boolean") {
+    db.prepare("UPDATE ai_characters SET enabled=?, updated_at=? WHERE id=?")
+      .run(enabled ? 1 : 0, new Date().toISOString(), id);
+  }
+
+  invalidateCache();
+  res.json({ success: true });
+});
+
+/* ===== 删除 ===== */
+router.delete("/ai/characters/:id", authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id);
+  const row = db.prepare("SELECT id, user_id FROM ai_characters WHERE id=?").get(id);
+  if (!row) return res.json({ success: false, message: "角色不存在" });
+  db.prepare("DELETE FROM ai_characters WHERE id=?").run(id);
+  db.prepare("DELETE FROM users WHERE id=? AND is_ai=1").run(row.user_id);
+  invalidateCache();
+  res.json({ success: true });
+});
+
+/* ===== 上传头像 ===== */
+router.post("/ai/characters/:id/avatar", authMiddleware, adminMiddleware, uploadAvatar.single("avatar"), (req, res) => {
+  if (!req.file) return res.json({ success: false, message: "上传失败" });
+  const id = parseInt(req.params.id);
+  const row = db.prepare("SELECT user_id FROM ai_characters WHERE id=?").get(id);
+  if (!row) return res.json({ success: false, message: "角色不存在" });
+  db.prepare("UPDATE users SET avatar=? WHERE id=?").run(req.file.filename, row.user_id);
+  invalidateCache();
+  res.json({ success: true, avatar: req.file.filename });
+});
+
+/* ===== 调用日志 ===== */
+router.get("/ai/characters/:id/logs", authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id);
+  const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 500);
+  const rows = db.prepare("SELECT * FROM ai_logs WHERE character_id=? ORDER BY id DESC LIMIT ?").all(id, limit);
+  res.json({ success: true, logs: rows });
+});
+
+/* ===== 手动测试发言 ===== */
+router.post("/ai/characters/:id/test", authMiddleware, adminMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const chId = parseInt(req.body.channelId);
+  if (!chId) return res.json({ success: false, message: "缺少 channelId" });
+  const row = db.prepare(`
+    SELECT ac.id, ac.user_id, ac.config_json, u.username, u.nickname, u.avatar
+    FROM ai_characters ac JOIN users u ON ac.user_id = u.id WHERE ac.id=?
+  `).get(id);
+  if (!row) return res.json({ success: false, message: "角色不存在" });
+  let config = {};
+  try { config = JSON.parse(row.config_json); } catch(e) {}
+
+  const io = req.app.get("io");
+  try {
+    await runReply({
+      character: { id: row.id, config },
+      aiUser: { id: row.user_id, username: row.username, nickname: row.nickname, avatar: row.avatar },
+      channelId: chId,
+      triggerMsgId: null,
+      triggerType: "manual_test",
+      io
+    });
+    res.json({ success: true });
+  } catch(e) {
+    res.json({ success: false, message: (e && e.message) || String(e) });
+  }
+});
+
+module.exports = router;
