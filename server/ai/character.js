@@ -6,9 +6,13 @@
  * - 调 DeepSeek
  * - 写消息 + emit socket
  */
-const { db } = require("../database");
-const { DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL } = require("../config");
+const { db, getSetting } = require("../database");
+const { DEEPSEEK_BASE_URL } = require("../config");
 const ds = require("./deepseek-client");
+
+function getCurrentKey() {
+  return (getSetting("deepseek_api_key") || "").trim();
+}
 
 /* ===== 是否在线 (基于 schedule) ===== */
 function isOnline(schedule) {
@@ -154,7 +158,8 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
   const config = character.config || {};
   const startTime = Date.now();
 
-  if (!DEEPSEEK_API_KEY) {
+  const apiKey = getCurrentKey();
+  if (!apiKey) {
     logReply({ charId: character.id, channelId, trigger: triggerType, inputMsgId: triggerMsgId, error: "no_api_key" });
     return;
   }
@@ -180,7 +185,7 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
   let content = "", inTok = 0, outTok = 0, err = null;
   try {
     const res = await ds.chatCompletion({
-      apiKey: DEEPSEEK_API_KEY,
+      apiKey,
       baseUrl: DEEPSEEK_BASE_URL,
       model: (config.model && config.model.name) || "deepseek-chat",
       temperature: (config.model && config.model.temperature != null) ? config.model.temperature : 0.8,
@@ -239,4 +244,4 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
   if (io) io.to("ch:" + channelId).emit("newMessage", emitMsg);
 }
 
-module.exports = { isOnline, buildSystemPrompt, runReply };
+module.exports = { isOnline, buildSystemPrompt, runReply, getCurrentKey };

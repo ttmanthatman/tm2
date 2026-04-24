@@ -120,6 +120,16 @@ if (!defaultCh) {
 const insSetting = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)");
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) insSetting.run(k, v);
 
+/* ===== 首次迁移: 把老 .deepseek_key / env 的值搬进 DB (只做一次) ===== */
+try {
+  const { DEEPSEEK_FALLBACK_KEY } = require("./config");
+  const existing = db.prepare("SELECT value FROM settings WHERE key='deepseek_api_key'").get();
+  if (!existing && DEEPSEEK_FALLBACK_KEY) {
+    db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run("deepseek_api_key", DEEPSEEK_FALLBACK_KEY);
+    console.log("✅ 已把 .deepseek_key 的值迁入数据库 (settings.deepseek_api_key)");
+  }
+} catch(e) { console.error("[migrate deepseek key]", e.message); }
+
 /* ===== 辅助函数 ===== */
 function getSetting(k) {
   const r = db.prepare("SELECT value FROM settings WHERE key=?").get(k);
