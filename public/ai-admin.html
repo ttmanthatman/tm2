@@ -68,6 +68,16 @@
     </div>
   </div>
   <div class="card">
+    <h2>🐞 调试开关</h2>
+    <div class="row">
+      <label style="flex:1">
+        <input type="checkbox" id="debug-toggle" onchange="toggleDebug(this.checked)">
+        打印每次 DeepSeek 调用的完整 messages 到 pm2 日志
+        <span class="hint">(用于排查缓存命中问题, 平时关闭避免日志过大)</span>
+      </label>
+    </div>
+  </div>
+  <div class="card">
     <h2>新建角色</h2>
     <div class="row">
       <label style="flex:0 0 80px">username</label>
@@ -164,7 +174,29 @@ function onFileImport(ev) {
   r.readAsText(f);
   ev.target.value = '';
 }
-
+async function loadDebugStatus() {
+  try {
+    const r = await fetch(API + '/api/ai/config', { headers: authH() });
+    const d = await r.json();
+    document.getElementById('debug-toggle').checked = !!d.debug_messages;
+  } catch(e) {}
+}
+async function toggleDebug(on) {
+  try {
+    const r = await fetch(API + '/api/ai/config/debug', {
+      method: 'POST',
+      headers: authH({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ enabled: !!on })
+    });
+    const d = await r.json();
+    if (!d.success) {
+      alertMsg('切换失败: ' + (d.message || ''), 'err');
+      loadDebugStatus();
+      return;
+    }
+    alertMsg(on ? '已开启 debug, pm2 logs 可见每次调用内容' : '已关闭 debug', 'ok');
+  } catch(e) { alertMsg(e.message, 'err'); }
+}
 async function loadKeyStatus() {
   try {
     const r = await fetch(API + '/api/ai/config', { headers: authH() });
@@ -415,6 +447,7 @@ function exportChar(id) {
 }
 
 loadKeyStatus();
+loadDebugStatus();
 loadList();
 setInterval(() => { loadKeyStatus(); loadList(); }, 30000);
 </script>

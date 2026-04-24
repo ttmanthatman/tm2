@@ -182,6 +182,20 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
 
   const messages = [{ role: "system", content: systemPrompt }, ...contextMsgs];
 
+  /* v0.5.4 debug: 打印 messages 数组, 用于排查缓存不命中 */
+  if (process.env.AI_DEBUG_MESSAGES === "1" || getSetting("ai_debug_messages") === "1") {
+    try {
+      console.log("========== [AI DEBUG] char=" + character.id + " ch=" + channelId + " ==========");
+      console.log("system (" + systemPrompt.length + " chars):");
+      console.log(systemPrompt);
+      console.log("--- context (" + contextMsgs.length + " msgs) ---");
+      contextMsgs.forEach((m, i) => {
+        console.log("[" + i + "] " + m.role + " (" + (m.content || "").length + " chars): " + (m.content || "").substring(0, 200));
+      });
+      console.log("========== END DEBUG ==========");
+    } catch(e) {}
+  }
+
   let content = "", inTok = 0, outTok = 0, cacheHit = 0, cacheMiss = 0, err = null;
   try {
     const res = await ds.chatCompletion({
