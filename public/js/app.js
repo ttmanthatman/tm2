@@ -325,7 +325,7 @@ function onMsgInput(e) {
     function autoGrow(e) { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }
 
     /* ===== File upload ===== */
-    async function uploadFile(file) {
+   async function uploadFile(file) {
       if (!file) return;
       const fd = new FormData();
       fd.append('file', file);
@@ -335,6 +335,16 @@ function onMsgInput(e) {
         const d = await r.json();
         if (!d.success) alert(d.message || '上传失败');
       } catch(e) { alert('上传失败'); }
+    }
+
+    /* v0.5.9: 多选附件 — 顺序串行上传 (保持时间顺序), 上限 20 个防误选 */
+    async function uploadFiles(files) {
+      if (!files || !files.length) return;
+      const list = Array.from(files).slice(0, 20);
+      if (files.length > 20) alert('一次最多上传 20 个文件，已截取前 20 个');
+      for (let i = 0; i < list.length; i++) {
+        await uploadFile(list[i]);
+      }
     }
 
     /* ===== Chain ===== */
@@ -382,7 +392,7 @@ function onMsgInput(e) {
       sortedMembers, onlineCount, isUserOnline,
       currentTyping,
       doLogin, doRegister, logout, sendMsg, handleKey, insertNewline, autoGrow, onMsgInput,
-      uploadFile, sendChain, joinChain, parseChain, loadMore, showCtx, setReply,
+      uploadFile, uploadFiles, sendChain, joinChain, parseChain, loadMore, showCtx, setReply,
       switchChannel: async (id) => { sidebarOpen.value = false; await switchChannel(id); },
       store, msgStore, API, esc, fmtTime, fmtSize, avatarUrl, sanitize,
       togglePush, checkPush,
@@ -507,7 +517,7 @@ function onMsgInput(e) {
         </div>
       </div>
       <button class="voice-btn" title="语音消息" @click="startRecording()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
-      <input ref="fileInput" type="file" hidden @change="uploadFile($event.target.files[0]);$event.target.value=''">
+      <input ref="fileInput" type="file" hidden multiple @change="uploadFiles($event.target.files);$event.target.value=''">
       <textarea v-model="msgInput" placeholder="输入消息..." rows="1" enterkeyhint="send" @keydown="handleKey" @input="onMsgInput"></textarea>
       <div style="position:relative">
         <button class="emoji-btn" @click.stop="showEmojiPicker=!showEmojiPicker;showPlusMenu=false" title="表情">😊</button>
