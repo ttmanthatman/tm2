@@ -46,9 +46,18 @@ const App = {
     const mentionIdx = ref(0);
     let _mentionAtPos = -1; /* @符号在 textarea value 中的位置 */
 
-    function onMsgInput(e) {
+function onMsgInput(e) {
       autoGrow(e);
+      /* iOS Chrome (WKWebView) 在 input 事件触发时 selectionStart 可能尚未更新，
+         延迟一帧再读，Safari / desktop 不受影响 */
       var ta = e.target;
+      setTimeout(function() {
+        _detectMention(ta);
+      }, 0);
+    }
+
+    function _detectMention(ta) {
+      if (!ta) { mentionShow.value = false; return; }
       var val = ta.value;
       var cur = ta.selectionStart;
       /* 从光标往前找最近的 @ */
