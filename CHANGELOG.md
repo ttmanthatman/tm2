@@ -2,7 +2,18 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
-### [v0.5.8]
+
+## [v0.5.9]
+### 修复
+- **附件支持多选**: 文件输入框加 multiple，最多一次选 20 个，按顺序串行上传，保持时间顺序
+- **中文文件名乱码**: `fixFilename` 把已正确解码的 Unicode 字符串当成 latin1 字节回炒，导致 "展望3-1.pdf" → "U\x1B3-1.pdf"（显示成 "U3-1.pdf"）。改为：仅当字符串全部码点 ≤ 255 且含高位字节时才二次解码；含 > 255 码点的 Unicode 字符串直接放过
+- **URL 链接被截断**: `sanitize` 纯文本分支使用 `[^\s&lt;]` 作为字符类，被解析成"非空白/&/l/t/;"——任何 URL 在第一个 `l`/`t` 字符就被切断（即 https:// 之后碰到第一个 l 或 t）。改为统一用 DOM TreeWalker 处理，规避 HTML escape 后字符类陷阱
+- **自动链接增强**: 末尾的中英文标点 (.,;:!?，。；：！？、…) 不再算入链接；不平衡的右括号 `)` `]` 也会被剥离（如 "(见 https://x.com/foo)" 中的尾部 `)`）
+### 运维
+- bump sw.js CACHE_NAME: v10 → v11
+
+
+## [v0.5.8]
 - fix: @提及弹窗在 iPhone Chrome 不弹出 — 延迟一帧读取 selectionStart，兼容 WKWebView 的事件时序差异
 
 ## [v0.5.7] - 2026-04-24
