@@ -2,6 +2,32 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [v0.5.7] - 2026-04-24
+
+### 新增 - 拟真行为
+- AI 回复增加打字延迟: 思考(0.5~2s) + 打字(content.length / 10~20字/秒), 上限 15s
+- 冷启动: 距该频道上次发言 > 10 分钟, 思考时间额外 +2~5 秒
+- typing indicator: "思考时间"静默, 到打字阶段前端显示"···"气泡; 消息到达时气泡消失
+- AI 正在打字时有新消息到来, 锁定当前回复不打断 (方案 A, 简单稳妥)
+- 延迟期间角色被停用 -> 自动取消该次回复
+
+### 新增 - 管理页可视化
+- 每个角色卡片: JSON 编辑框上方新增"📅 在线时段"可视化区
+  - 时区下拉、多时段添加/删除、星期圆点勾选、HH:MM 输入框
+  - 右上角实时显示"🟢 现在: 在线"/"⚫ 现在: 离线"徽章
+- 每个角色卡片: 新增"⌨️ 打字行为"可视化区
+  - 思考时间范围、打字速度范围、总延迟上限、typing indicator 开关
+- UI 和 JSON 双向绑定: 改 UI -> JSON 实时同步; 手改 JSON -> UI 实时重渲染
+- 改完点"保存配置"生效 (同以前)
+
+### 技术
+- config 新字段: `typing_behavior.{thinking_delay_sec, typing_speed_cps, max_total_delay_sec, show_typing_indicator}`
+- 新 socket 事件: `aiTyping` (state: start | stop)
+- store.aiTyping: 按 channel_id+username 索引, 15s TTL 兜底防事件丢失
+
+### 运维
+- bump sw.js CACHE_NAME: v11 -> v12
+
 ## [v0.5.6]
 - fix: @提及补全列表上限从 20 提高到 50，按昵称排序，AI 角色不再被截断
 
