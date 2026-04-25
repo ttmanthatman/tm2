@@ -2,6 +2,9 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+### [v0.5.8]
+- fix: @提及弹窗在 iPhone Chrome 不弹出 — 延迟一帧读取 selectionStart，兼容 WKWebView 的事件时序差异
+
 ## [v0.5.7] - 2026-04-24
 
 ### 新增 - 拟真行为
