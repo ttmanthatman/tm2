@@ -7,14 +7,25 @@ const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const { UPLOAD_DIR, AVATAR_DIR, BG_DIR, VOICE_DIR, ALLOWED_EXT } = require("./config");
 
+/* v0.5.9: 检测原文件名是否已经是正确的 Unicode 字符串
+ * - 任何码点 > 255: 一定已是正确 Unicode (含多字节字符), 直接放过
+ *   (如果再 Buffer.from(raw, "latin1") 会取低字节, 把 "展" 0x5C55 变成 'U' 0x55)
+ * - 全部码点 ≤ 255 但有 > 127: 推测是某些客户端按 latin1 发送的 UTF-8 字节
+ *   (例如未正确声明 charset 的旧版浏览器), 转回字节再按 UTF-8 解码
+ * - 全 ASCII: 无需处理 */
 function fixFilename(file) {
   try {
     const raw = file.originalname;
+    if (!raw) return;
     let hasNonAscii = false;
+    let hasHighCodepoint = false;
     for (let i = 0; i < raw.length; i++) {
-      if (raw.charCodeAt(i) > 127) { hasNonAscii = true; break; }
+      const c = raw.charCodeAt(i);
+      if (c > 255) { hasHighCodepoint = true; break; }
+      if (c > 127) hasNonAscii = true;
     }
-    if (!hasNonAscii) return;
+    if (hasHighCodepoint) return; /* 已是正确 Unicode, 不要再回炒 */
+    if (!hasNonAscii) return;     /* 纯 ASCII, 无需处理 */
     const buf = Buffer.from(raw, "latin1");
     const dec = buf.toString("utf8");
     if (!dec.includes("\ufffd")) file.originalname = dec;
