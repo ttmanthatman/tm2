@@ -42,6 +42,7 @@ function validateConfig(c) {
   }
   return errs;
 }
+
 function fillDefaults(c) {
   const d = {
     name: "AI",
@@ -50,7 +51,13 @@ function fillDefaults(c) {
     trigger: { mode: "passive", mention_keywords: [], max_replies_per_minute: 3 },
     channels: [],
     model: { provider: "deepseek", name: "deepseek-chat", temperature: 0.8, max_context_messages: 20 },
-    budget: { daily_tokens: 50000, per_message_max_tokens: 500 }
+    budget: { daily_tokens: 50000, per_message_max_tokens: 500 },
+    typing_behavior: {
+      thinking_delay_sec: [0.5, 2],
+      typing_speed_cps: [10, 20],
+      max_total_delay_sec: 15,
+      show_typing_indicator: true
+    }
   };
   return Object.assign(d, c);
 }

@@ -17,6 +17,8 @@ const store = Vue.reactive({
   onlineUsers: [],
   allUsers: [],
   notice: { content: '', enabled: false },
+  /* v0.5.7: AI 正在打字的状态, key=channelId_username */
+  aiTyping: {},
 });
 
 /* 消息存储 (按频道) */
@@ -36,6 +38,29 @@ function clearAuth() {
   }
   Object.assign(store, {
     token: '', username: '', userId: 0, isAdmin: false,
-    nickname: '', avatar: '', channels: [], currentChannelId: 0
+    nickname: '', avatar: '', channels: [], currentChannelId: 0, aiTyping: {}
   });
+}
+
+/* v0.5.7: 统一处理 AI typing 事件 */
+const _aiTypingTimers = {};
+function handleAiTyping(d) {
+  const key = d.channel_id + '_' + d.username;
+  if (d.state === 'start') {
+    store.aiTyping[key] = {
+      channel_id: d.channel_id,
+      username: d.username,
+      nickname: d.nickname || d.username,
+      avatar: d.avatar || null
+    };
+    if (_aiTypingTimers[key]) clearTimeout(_aiTypingTimers[key]);
+    const ttl = Math.max(d.expected_duration_ms || 15000, 3000);
+    _aiTypingTimers[key] = setTimeout(() => {
+      delete store.aiTyping[key];
+      delete _aiTypingTimers[key];
+    }, ttl);
+  } else if (d.state === 'stop') {
+    delete store.aiTyping[key];
+    if (_aiTypingTimers[key]) { clearTimeout(_aiTypingTimers[key]); delete _aiTypingTimers[key]; }
+  }
 }
