@@ -266,6 +266,68 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
     return;
   }
 
+  /* ===== v0.5.7: 拟真打字延迟 + typing indicator ===== */
+  const typingCfg = config.typing_behavior || {};
+  const thinkRange = Array.isArray(typingCfg.thinking_delay_sec) ? typingCfg.thinking_delay_sec : [0.5, 2];
+  const speedRange = Array.isArray(typingCfg.typing_speed_cps) ? typingCfg.typing_speed_cps : [10, 20];
+  const maxTotal = typingCfg.max_total_delay_sec || 15;
+  const showIndicator = typingCfg.show_typing_indicator !== false;
+
+  let thinkSec = thinkRange[0] + Math.random() * (thinkRange[1] - thinkRange[0]);
+
+  /* 冷启动: 距该频道上次发言 > 10 分钟则额外 +2-5 秒 */
+  try {
+    const lastRow = db.prepare(
+      "SELECT created_at FROM messages WHERE user_id=? AND channel_id=? ORDER BY id DESC LIMIT 1"
+    ).get(aiUser.id, channelId);
+    if (lastRow && lastRow.created_at) {
+      const last = new Date(lastRow.created_at).getTime();
+      if (!isNaN(last) && (Date.now() - last) > 10 * 60 * 1000) {
+        thinkSec += 2 + Math.random() * 3;
+      }
+    } else {
+      thinkSec += 2 + Math.random() * 3;
+    }
+  } catch(e) {}
+
+  const cps = speedRange[0] + Math.random() * (speedRange[1] - speedRange[0]);
+  const typingSec = content.length / Math.max(cps, 1);
+
+  let totalDelaySec = thinkSec + typingSec;
+  if (totalDelaySec > maxTotal) totalDelaySec = maxTotal;
+  if (totalDelaySec < 0.5) totalDelaySec = 0.5;
+
+  const thinkMs = Math.min(thinkSec, totalDelaySec) * 1000;
+  const typingMs = Math.max(totalDelaySec * 1000 - thinkMs, 0);
+
+  if (io && showIndicator) {
+    setTimeout(() => {
+      try {
+        io.to("ch:" + channelId).emit("aiTyping", {
+          channel_id: channelId,
+          user_id: aiUser.id,
+          username: aiUser.username,
+          nickname: aiUser.nickname || aiUser.username,
+          avatar: aiUser.avatar || null,
+          state: "start",
+          expected_duration_ms: Math.round(typingMs) + 2000
+        });
+      } catch(e) {}
+    }, Math.round(thinkMs));
+  }
+
+  await new Promise(resolve => setTimeout(resolve, Math.round(totalDelaySec * 1000)));
+
+  /* 延迟期间角色可能被停用 */
+  const stillEnabledRow = db.prepare("SELECT enabled FROM ai_characters WHERE id=?").get(character.id);
+  if (!stillEnabledRow || !stillEnabledRow.enabled) {
+    if (io && showIndicator) {
+      try { io.to("ch:" + channelId).emit("aiTyping", { channel_id: channelId, user_id: aiUser.id, username: aiUser.username, state: "stop" }); } catch(e) {}
+    }
+    logReply({ charId: character.id, channelId, trigger: triggerType, inputMsgId: triggerMsgId, inTok, outTok, cacheHit, cacheMiss, latency, error: "disabled_during_delay" });
+    return;
+  }
+
   /* 插入消息 */
   const nowUtc = new Date().toISOString();
   const result = db.prepare(
@@ -294,7 +356,12 @@ async function runReply({ character, aiUser, channelId, triggerMsgId, triggerTyp
     created_at: nowUtc,
     is_ai: 1
   };
-  if (io) io.to("ch:" + channelId).emit("newMessage", emitMsg);
+  if (io) {
+    if (showIndicator) {
+      try { io.to("ch:" + channelId).emit("aiTyping", { channel_id: channelId, user_id: aiUser.id, username: aiUser.username, state: "stop" }); } catch(e) {}
+    }
+    io.to("ch:" + channelId).emit("newMessage", emitMsg);
+  }
 }
 
 module.exports = { isOnline, buildSystemPrompt, runReply, getCurrentKey };

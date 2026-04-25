@@ -85,6 +85,12 @@ function initSocket() {
   socket.on('usersChanged', () => { if (typeof loadAllUsers === 'function') loadAllUsers(); });
   /* v0.5.6: 每分钟 tick, 更新 AI 在线状态 */
   socket.on('aiStatusTick', () => { if (typeof loadAllUsers === 'function') loadAllUsers(); });
+
+  /* v0.5.7: AI 打字状态 */
+  socket.on('aiTyping', d => {
+    if (!d || !d.channel_id || !d.username) return;
+    if (typeof handleAiTyping === 'function') handleAiTyping(d);
+  });
 }
 
 function showKicked(msg) {

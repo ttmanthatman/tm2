@@ -218,6 +218,16 @@ const App = {
     });
     const onlineCount = computed(() => sortedMembers.value.filter(isUserOnline).length);
 
+    /* v0.5.7: 当前频道正在打字的 AI 列表 */
+    const currentTyping = computed(() => {
+      const list = [];
+      for (const k in store.aiTyping) {
+        const t = store.aiTyping[k];
+        if (t && t.channel_id === store.currentChannelId) list.push(t);
+      }
+      return list;
+    });
+
     /* ===== Init ===== */
     onMounted(async () => {
       initSW(); /* 不 await — SW 注册不应阻塞 UI */
@@ -361,6 +371,7 @@ const App = {
       loginUser, loginPass, regUser, regNick, regPass, regPass2, chainTopic, chainDesc,
       currentChannel, currentMessages, onlineSet, ctxMenu,
       sortedMembers, onlineCount, isUserOnline,
+      currentTyping,
       doLogin, doRegister, logout, sendMsg, handleKey, insertNewline, autoGrow, onMsgInput,
       uploadFile, sendChain, joinChain, parseChain, loadMore, showCtx, setReply,
       switchChannel: async (id) => { sidebarOpen.value = false; await switchChannel(id); },
@@ -451,7 +462,16 @@ const App = {
                 <div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
                 <span class="voice-dur">{{fmtDuration(m.duration)}}</span>
               </div>
-              <div class="msg-time">{{fmtTime(m.created_at)}}</div>
+             <div class="msg-time">{{fmtTime(m.created_at)}}</div>
+            </div>
+          </div>
+        </div>
+        <div v-for="t in currentTyping" :key="'typing_'+t.username" class="msg other typing-msg">
+          <img class="msg-avatar" :src="avatarUrl(t.avatar)" :alt="t.nickname">
+          <div class="msg-body">
+            <div class="msg-sender">{{t.nickname}}</div>
+            <div class="msg-bubble typing-bubble">
+              <span class="typing-dots"><span></span><span></span><span></span></span>
             </div>
           </div>
         </div>
@@ -1039,6 +1059,10 @@ const App = {
           btn.style.background = st.subscribed ? '#dc2626' : '#667eea';
         }
       }
+    });
+    /* v0.5.7: 有 AI 开始打字时滚到底部 */
+    this.$watch(() => this.currentTyping.length, async (n, o) => {
+      if (n > (o || 0)) { await Vue.nextTick(); const el = document.querySelector('.messages'); if (el) el.scrollTop = el.scrollHeight; }
     });
   }
 };

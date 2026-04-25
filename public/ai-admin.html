@@ -37,6 +37,27 @@
   .hint { color: #888; font-size: 12px; }
   .avatar { width: 36px; height: 36px; border-radius: 50%; background: #ddd center/cover; display: inline-block; vertical-align: middle; }
   a { color: #667eea; text-decoration: none; }
+  .sched-card { background:#f8f9fb; border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin:10px 0; }
+  .sched-card h3 { margin:0 0 10px; font-size:13px; font-weight:600; color:#444; }
+  .sched-tz { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:13px; }
+  .sched-tz select { padding:4px 8px; border:1px solid #ccc; border-radius:4px; font:inherit; }
+  .sched-win { display:flex; align-items:center; gap:8px; padding:8px; background:#fff; border:1px solid #e5e7eb; border-radius:6px; margin-bottom:6px; flex-wrap:wrap; }
+  .sched-days { display:inline-flex; gap:4px; }
+  .sched-day { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:#e5e7eb; color:#666; font-size:12px; cursor:pointer; user-select:none; transition:all .15s; }
+  .sched-day.on { background:#667eea; color:#fff; }
+  .sched-time { display:inline-flex; align-items:center; gap:4px; font-size:12px; color:#666; }
+  .sched-time input[type=time] { padding:3px 6px; border:1px solid #ccc; border-radius:4px; font:inherit; font-family:inherit; }
+  .sched-del { background:transparent; color:#c33; border:0; cursor:pointer; font-size:18px; padding:0 4px; }
+  .sched-add { background:transparent; color:#667eea; border:1px dashed #667eea; padding:5px 10px; border-radius:6px; font-size:12px; cursor:pointer; margin-top:4px; }
+  .sched-hint { font-size:11px; color:#888; margin-top:6px; }
+  .sched-on-now { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; background:#d1fae5; color:#065f46; margin-left:6px; }
+  .sched-off-now { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; background:#fee; color:#c33; margin-left:6px; }
+  .typing-card { background:#f8f9fb; border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin:10px 0; }
+  .typing-card h3 { margin:0 0 10px; font-size:13px; font-weight:600; color:#444; }
+  .typing-row { display:flex; gap:10px; align-items:center; margin-bottom:6px; font-size:12px; color:#555; flex-wrap:wrap; }
+  .typing-row label { min-width:110px; }
+  .typing-row input[type=number] { width:60px; padding:3px 6px; border:1px solid #ccc; border-radius:4px; font:inherit; }
+  .typing-row .sep { color:#999; }
 </style>
 </head>
 <body>
@@ -291,6 +312,9 @@ function renderCard(c) {
       ' <span class="badge">' + (c.is_online_now ? '当前在线' : '当前离线') + '</span>' +
       ' <span class="badge">今日 token: ' + (c.tokens_used_today || 0) + '</span>' +
     '</h2>' +
+    '<div id="sched-ui-' + c.id + '" class="sched-card"></div>' +
+    '<div id="typing-ui-' + c.id + '" class="typing-card"></div>' +
+    '<div class="hint" style="margin:8px 0 4px">高级配置 (JSON, 上面 UI 改动会实时同步, 也可直接编辑):</div>' +
     '<textarea spellcheck="false" id="cfg-' + c.id + '"></textarea>' +
     '<div class="row" style="margin-top:10px">' +
       '<button onclick="saveChar(' + c.id + ')">保存配置</button>' +
@@ -305,7 +329,224 @@ function renderCard(c) {
     '</div>' +
     '<div id="logs-' + c.id + '"></div>';
   el.querySelector('#cfg-' + c.id).value = JSON.stringify(c.config, null, 2);
+  /* 渲染 schedule / typing UI */
+  renderScheduleUI(c.id);
+  renderTypingUI(c.id);
+  /* JSON textarea 变化时重渲染 UI */
+  el.querySelector('#cfg-' + c.id).addEventListener('input', function() {
+    renderScheduleUI(c.id);
+    renderTypingUI(c.id);
+  });
   return el;
+}
+
+/* ===== v0.5.7: Schedule 可视化 UI ===== */
+const TZ_LIST = [
+  'Asia/Shanghai', 'Asia/Hong_Kong', 'Asia/Tokyo', 'Asia/Singapore', 'Asia/Kolkata',
+  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+  'America/New_York', 'America/Chicago', 'America/Los_Angeles',
+  'Pacific/Auckland', 'Australia/Sydney', 'UTC'
+];
+const DAY_LABELS = [
+  { key: 'mon', label: '一' },
+  { key: 'tue', label: '二' },
+  { key: 'wed', label: '三' },
+  { key: 'thu', label: '四' },
+  { key: 'fri', label: '五' },
+  { key: 'sat', label: '六' },
+  { key: 'sun', label: '日' }
+];
+
+function parseCurrentConfig(charId) {
+  const ta = document.getElementById('cfg-' + charId);
+  if (!ta) return null;
+  try { return JSON.parse(ta.value); } catch(e) { return null; }
+}
+function writeCurrentConfig(charId, config) {
+  const ta = document.getElementById('cfg-' + charId);
+  if (ta) ta.value = JSON.stringify(config, null, 2);
+}
+
+function isScheduleOnline(schedule) {
+  if (!schedule || !Array.isArray(schedule.online_windows) || !schedule.online_windows.length) return true;
+  try {
+    const tz = schedule.timezone || 'Asia/Shanghai';
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+    });
+    let wd = 'mon', hh = 0, mm = 0;
+    for (const p of fmt.formatToParts(now)) {
+      if (p.type === 'weekday') wd = p.value.toLowerCase().substring(0,3);
+      else if (p.type === 'hour') hh = parseInt(p.value) || 0;
+      else if (p.type === 'minute') mm = parseInt(p.value) || 0;
+    }
+    if (hh === 24) hh = 0;
+    const cur = hh * 60 + mm;
+    for (const w of schedule.online_windows) {
+      if (w.days && Array.isArray(w.days) && !w.days.includes(wd)) continue;
+      const fp = hmToMin(w.from, 0), tp = hmToMin(w.to, 24 * 60);
+      if (tp >= fp) { if (cur >= fp && cur < tp) return true; }
+      else { if (cur >= fp || cur < tp) return true; }
+    }
+    return false;
+  } catch(e) { return false; }
+}
+function hmToMin(s, dft) {
+  if (!s || typeof s !== 'string') return dft;
+  const m = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return dft;
+  return (parseInt(m[1]) || 0) * 60 + (parseInt(m[2]) || 0);
+}
+
+function renderScheduleUI(charId) {
+  const host = document.getElementById('sched-ui-' + charId);
+  if (!host) return;
+  const config = parseCurrentConfig(charId);
+  if (!config) {
+    host.innerHTML = '<div class="hint" style="color:#c33">⚠️ JSON 解析错误, 修好后这里会刷新</div>';
+    return;
+  }
+  if (!config.schedule || typeof config.schedule !== 'object') config.schedule = { timezone: 'Asia/Shanghai', online_windows: [] };
+  if (!Array.isArray(config.schedule.online_windows)) config.schedule.online_windows = [];
+  const sch = config.schedule;
+
+  const isOn = isScheduleOnline(sch);
+  const onBadge = isOn
+    ? '<span class="sched-on-now">🟢 现在: 在线</span>'
+    : '<span class="sched-off-now">⚫ 现在: 离线</span>';
+
+  const tzOpts = TZ_LIST.map(tz => '<option value="' + tz + '"' + (sch.timezone === tz ? ' selected' : '') + '>' + tz + '</option>').join('');
+
+  let html = '<h3>📅 在线时段 ' + onBadge + '</h3>';
+  html += '<div class="sched-tz"><span>时区:</span><select onchange="updateSchedTz(' + charId + ', this.value)">' + tzOpts + '</select></div>';
+
+  if (!sch.online_windows.length) {
+    html += '<div class="hint">(没有配置时段 = 永远在线)</div>';
+  } else {
+    sch.online_windows.forEach((w, idx) => {
+      const days = Array.isArray(w.days) ? w.days : [];
+      const dayBtns = DAY_LABELS.map(d =>
+        '<span class="sched-day ' + (days.includes(d.key) ? 'on' : '') + '" onclick="toggleSchedDay(' + charId + ', ' + idx + ', \'' + d.key + '\')">' + d.label + '</span>'
+      ).join('');
+      html += '<div class="sched-win">' +
+        '<div class="sched-days">' + dayBtns + '</div>' +
+        '<div class="sched-time">从' +
+          '<input type="time" value="' + escapeHtml(w.from || '09:00') + '" onchange="updateSchedTime(' + charId + ', ' + idx + ', \'from\', this.value)">' +
+          '到' +
+          '<input type="time" value="' + escapeHtml(w.to || '23:00') + '" onchange="updateSchedTime(' + charId + ', ' + idx + ', \'to\', this.value)">' +
+        '</div>' +
+        '<button class="sched-del" title="删除此时段" onclick="removeSchedWin(' + charId + ', ' + idx + ')">✕</button>' +
+      '</div>';
+    });
+  }
+  html += '<button class="sched-add" onclick="addSchedWin(' + charId + ')">+ 添加时段</button>';
+  html += '<div class="sched-hint">时段内视为"在线". 结束<开始可跨午夜 (如 22:00→02:00). 改完别忘点"保存配置".</div>';
+
+  host.innerHTML = html;
+}
+
+function updateSchedTz(charId, tz) {
+  const cfg = parseCurrentConfig(charId);
+  if (!cfg) return;
+  if (!cfg.schedule) cfg.schedule = { timezone: tz, online_windows: [] };
+  cfg.schedule.timezone = tz;
+  writeCurrentConfig(charId, cfg);
+  renderScheduleUI(charId);
+}
+function toggleSchedDay(charId, idx, dayKey) {
+  const cfg = parseCurrentConfig(charId);
+  if (!cfg || !cfg.schedule || !Array.isArray(cfg.schedule.online_windows)) return;
+  const w = cfg.schedule.online_windows[idx];
+  if (!w) return;
+  if (!Array.isArray(w.days)) w.days = [];
+  const i = w.days.indexOf(dayKey);
+  if (i >= 0) w.days.splice(i, 1); else w.days.push(dayKey);
+  const order = DAY_LABELS.map(d => d.key);
+  w.days.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  writeCurrentConfig(charId, cfg);
+  renderScheduleUI(charId);
+}
+function updateSchedTime(charId, idx, field, val) {
+  const cfg = parseCurrentConfig(charId);
+  if (!cfg || !cfg.schedule || !Array.isArray(cfg.schedule.online_windows)) return;
+  const w = cfg.schedule.online_windows[idx];
+  if (!w) return;
+  w[field] = val;
+  writeCurrentConfig(charId, cfg);
+  renderScheduleUI(charId);
+}
+function removeSchedWin(charId, idx) {
+  const cfg = parseCurrentConfig(charId);
+  if (!cfg || !cfg.schedule || !Array.isArray(cfg.schedule.online_windows)) return;
+  cfg.schedule.online_windows.splice(idx, 1);
+  writeCurrentConfig(charId, cfg);
+  renderScheduleUI(charId);
+}
+function addSchedWin(charId) {
+  const cfg = parseCurrentConfig(charId);
+  if (!cfg) return;
+  if (!cfg.schedule) cfg.schedule = { timezone: 'Asia/Shanghai', online_windows: [] };
+  if (!Array.isArray(cfg.schedule.online_windows)) cfg.schedule.online_windows = [];
+  cfg.schedule.online_windows.push({ days: ['mon','tue','wed','thu','fri'], from: '19:00', to: '23:00' });
+  writeCurrentConfig(charId, cfg);
+  renderScheduleUI(charId);
+}
+
+/* ===== v0.5.7: Typing behavior 可视化 UI ===== */
+function renderTypingUI(charId) {
+  const host = document.getElementById('typing-ui-' + charId);
+  if (!host) return;
+  const config = parseCurrentConfig(charId);
+  if (!config) { host.innerHTML = ''; return; }
+  if (!config.typing_behavior || typeof config.typing_behavior !== 'object') {
+    config.typing_behavior = {
+      thinking_delay_sec: [0.5, 2],
+      typing_speed_cps: [10, 20],
+      max_total_delay_sec: 15,
+      show_typing_indicator: true
+    };
+    writeCurrentConfig(charId, config);
+  }
+  const tb = config.typing_behavior;
+  const tMin = (Array.isArray(tb.thinking_delay_sec) ? tb.thinking_delay_sec[0] : 0.5);
+  const tMax = (Array.isArray(tb.thinking_delay_sec) ? tb.thinking_delay_sec[1] : 2);
+  const sMin = (Array.isArray(tb.typing_speed_cps) ? tb.typing_speed_cps[0] : 10);
+  const sMax = (Array.isArray(tb.typing_speed_cps) ? tb.typing_speed_cps[1] : 20);
+  const maxT = tb.max_total_delay_sec || 15;
+  const show = tb.show_typing_indicator !== false;
+
+  let html = '<h3>⌨️ 打字行为 (模拟真人)</h3>';
+  html += '<div class="typing-row"><label>思考时间 (秒)</label>' +
+    '<input type="number" step="0.1" min="0" value="' + tMin + '" onchange="updateTyping(' + charId + ', \'tMin\', this.value)">' +
+    '<span class="sep">~</span>' +
+    '<input type="number" step="0.1" min="0" value="' + tMax + '" onchange="updateTyping(' + charId + ', \'tMax\', this.value)"></div>';
+  html += '<div class="typing-row"><label>打字速度 (字/秒)</label>' +
+    '<input type="number" step="1" min="1" value="' + sMin + '" onchange="updateTyping(' + charId + ', \'sMin\', this.value)">' +
+    '<span class="sep">~</span>' +
+    '<input type="number" step="1" min="1" value="' + sMax + '" onchange="updateTyping(' + charId + ', \'sMax\', this.value)"></div>';
+  html += '<div class="typing-row"><label>总延迟上限 (秒)</label>' +
+    '<input type="number" step="1" min="1" max="60" value="' + maxT + '" onchange="updateTyping(' + charId + ', \'maxT\', this.value)"></div>';
+  html += '<div class="typing-row"><label><input type="checkbox"' + (show ? ' checked' : '') + ' onchange="updateTyping(' + charId + ', \'show\', this.checked)"> 显示"正在输入…"气泡</label></div>';
+  html += '<div class="sched-hint">举例: 思考 0.5~2s + 打字速度 10~20字/秒. 50 字回复 ≈ 3~7 秒. 距上次发言 > 10 分钟会额外 +2~5 秒 (冷启动).</div>';
+
+  host.innerHTML = html;
+}
+
+function updateTyping(charId, field, val) {
+  const cfg = parseCurrentConfig(charId);
+  if (!cfg) return;
+  if (!cfg.typing_behavior) cfg.typing_behavior = {};
+  const tb = cfg.typing_behavior;
+  if (!Array.isArray(tb.thinking_delay_sec)) tb.thinking_delay_sec = [0.5, 2];
+  if (!Array.isArray(tb.typing_speed_cps)) tb.typing_speed_cps = [10, 20];
+  if (field === 'tMin') tb.thinking_delay_sec[0] = parseFloat(val) || 0;
+  else if (field === 'tMax') tb.thinking_delay_sec[1] = parseFloat(val) || 0;
+  else if (field === 'sMin') tb.typing_speed_cps[0] = parseInt(val) || 1;
+  else if (field === 'sMax') tb.typing_speed_cps[1] = parseInt(val) || 1;
+  else if (field === 'maxT') tb.max_total_delay_sec = parseInt(val) || 15;
+  else if (field === 'show') tb.show_typing_indicator = !!val;
+  writeCurrentConfig(charId, cfg);
 }
 
 async function createChar() {
