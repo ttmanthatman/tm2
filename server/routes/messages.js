@@ -3,10 +3,13 @@
  * 消息获取、文件上传、头像/背景上传
  */
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const { db, normalizeToUTC, canAccessChannel, canWriteChannel } = require("../database");
 const { authMiddleware, adminMiddleware } = require("../middleware");
 const { upload, uploadAvatar, uploadBg, uploadVoice } = require("../upload");
 const { sendPushToOthers } = require("../push-service");
+const { UPLOAD_DIR, VOICE_DIR } = require("../config");
 
 const router = express.Router();
 
@@ -36,6 +39,41 @@ router.get("/messages", authMiddleware, (req, res) => {
   }));
 });
 
+/* ===== 受保护的聊天附件读取 ===== */
+router.get("/files/:kind/:filename", authMiddleware, (req, res) => {
+  const meta = {
+    uploads: { dir: UPLOAD_DIR, types: ["image", "file"] },
+    voices: { dir: VOICE_DIR, types: ["voice"] }
+  }[req.params.kind];
+  if (!meta) return res.status(404).json({ success: false, message: "文件不存在" });
+
+  const filename = String(req.params.filename || "");
+  if (!filename || filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+    return res.status(400).json({ success: false, message: "非法文件名" });
+  }
+
+  const placeholders = meta.types.map(() => "?").join(",");
+  const msg = db.prepare(
+    `SELECT id, channel_id, file_path FROM messages
+      WHERE file_path = ? AND type IN (${placeholders})
+      ORDER BY id DESC LIMIT 1`
+  ).get(filename, ...meta.types);
+  if (!msg) return res.status(404).json({ success: false, message: "文件不存在" });
+  if (!canAccessChannel(req.user.userId, msg.channel_id || 1)) {
+    return res.status(403).json({ success: false, message: "无权访问此文件" });
+  }
+
+  const root = path.resolve(meta.dir);
+  const abs = path.resolve(root, filename);
+  if (!abs.startsWith(root + path.sep)) {
+    return res.status(400).json({ success: false, message: "非法文件名" });
+  }
+  if (!fs.existsSync(abs)) return res.status(404).json({ success: false, message: "文件不存在" });
+
+  res.setHeader("Cache-Control", "private, max-age=300");
+  res.sendFile(abs);
+});
+
 /* ===== 删除消息 (管理员) ===== */
 router.delete("/messages", authMiddleware, adminMiddleware, (req, res) => {
   const { startDate, endDate, channelId } = req.body;
@@ -59,13 +97,10 @@ router.delete("/messages/:id", authMiddleware, adminMiddleware, (req, res) => {
 
   /* 如果有附件/语音文件,一并删除磁盘文件 */
   if (msg.file_path) {
-    const { UPLOAD_DIR, VOICE_DIR } = require("../config");
-    const fspath = require("path");
-    const fso = require("fs");
     const dir = msg.type === "voice" ? VOICE_DIR : UPLOAD_DIR;
-    const abs = fspath.join(dir, msg.file_path);
-    if (abs.startsWith(dir + fspath.sep)) {
-      try { fso.unlinkSync(abs); } catch (e) {}
+    const abs = path.join(dir, msg.file_path);
+    if (abs.startsWith(dir + path.sep)) {
+      try { fs.unlinkSync(abs); } catch (e) {}
     }
   }
 
@@ -151,7 +186,6 @@ router.post("/upload-avatar", authMiddleware, uploadAvatar.single("avatar"), (re
 });
 
 /* ===== 上传背景 ===== */
-const path = require("path");
 const IMG_EXTS_BG = new Set([".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg"]);
 const VID_EXTS_BG = new Set([".mp4",".mov",".webm",".m4v"]);
 router.post("/upload-bg", authMiddleware, adminMiddleware, uploadBg.single("bg"), (req, res) => {

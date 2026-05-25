@@ -12,6 +12,14 @@ const { sendPushToOthers } = require("./push-service");
 const onlineUsers = new Map();
 const userSocketMap = new Map();
 
+function stripUnsafeLinks(html) {
+  return html.replace(/\s+href\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi, (m, raw, dq, sq, bare) => {
+    const href = String(dq || sq || bare || "").trim();
+    if (/^(https?:|mailto:|tel:)/i.test(href)) return m;
+    return ' href="#"';
+  });
+}
+
 function broadcastOnlineUsers(io) {
   io.emit("onlineUsers", [
     ...new Map(
@@ -93,7 +101,7 @@ function setupSocket(io) {
         trimmed = trimmed.replace(/<(script|style|iframe|object|embed|link|meta)[^>]*\/?>/gi, "");
         trimmed = trimmed.replace(/\s+on[a-z]+\s*=\s*["'][^"']*["']/gi, "");
         trimmed = trimmed.replace(/\s+on[a-z]+\s*=\s*[^\s>]+/gi, "");
-        trimmed = trimmed.replace(/href\s*=\s*["']javascript:[^"']*["']/gi, 'href="#"');
+        trimmed = stripUnsafeLinks(trimmed);
         if (!trimmed.replace(/<[^>]*>/g, "").trim() && !/<br\s*\/?>/i.test(trimmed)) return;
       }
 
@@ -162,6 +170,7 @@ function setupSocket(io) {
 
       const origMsg = db.prepare("SELECT id,content,channel_id FROM messages WHERE id=?").get(messageId);
       if (!origMsg || !origMsg.content.startsWith("[CHAIN]")) return;
+      if (!canWriteChannel(userId, origMsg.channel_id)) return;
 
       let origData;
       try { origData = JSON.parse(origMsg.content.substring(7)); } catch(e) { return; }

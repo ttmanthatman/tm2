@@ -98,21 +98,12 @@ const FilesAdminMethods = {
       /* 单个: 直接下载原文件 */
       const f = (this.modalData.files || []).find(x => x.id === [...sel][0]);
       if (f) {
-        const base = f.type === 'voice' ? API + '/voices/' : API + '/uploads/';
-        const a = document.createElement('a');
-        a.href = base + encodeURIComponent(f.file_path);
-        a.download = f.file_name || f.file_path;
-        document.body.appendChild(a); a.click(); a.remove();
+        this.downloadProtectedFile(f.type === 'voice' ? 'voices' : 'uploads', f.file_path, f.file_name || f.file_path);
       }
       return;
     }
     /* 多个: zip 打包 */
-    const url = API + '/api/admin/uploads/download-zip?ids='
-      + [...sel].join(',')
-      + '&token=' + encodeURIComponent(store.token);
-    const a = document.createElement('a');
-    a.href = url; a.download = '';
-    document.body.appendChild(a); a.click(); a.remove();
+    this.downloadZip([...sel]);
   },
 
   fileIcon(f) {

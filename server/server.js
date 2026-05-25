@@ -8,7 +8,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 
-const { PORT, UPLOAD_DIR, AVATAR_DIR, BG_DIR, VOICE_DIR } = require("./config");
+const { PORT, AVATAR_DIR, BG_DIR } = require("./config");
 const { db } = require("./database");
 
 const app = express();
@@ -33,10 +33,11 @@ app.get("/manifest.json", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "manifest.json"));
 });
 app.use(express.static(path.join(__dirname, "..", "public"), { extensions: ["html"] }));
-app.use("/uploads", express.static(UPLOAD_DIR));
 app.use("/avatars", express.static(AVATAR_DIR));
 app.use("/backgrounds", express.static(BG_DIR));
-app.use("/voices", express.static(VOICE_DIR));
+app.use(["/uploads", "/voices"], (req, res) => {
+  res.status(404).json({ success: false, message: "文件不存在" });
+});
 
 app.use("/api", require("./routes/auth"));
 app.use("/api", require("./routes/channels"));

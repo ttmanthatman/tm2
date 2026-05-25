@@ -106,6 +106,15 @@ function _linkifyTextNode(textNode) {
   return true;
 }
 
+function _isSafeHref(href) {
+  try {
+    const u = new URL(href, window.location.origin);
+    return ['http:', 'https:', 'mailto:', 'tel:'].includes(u.protocol);
+  } catch(e) {
+    return false;
+  }
+}
+
 function sanitize(html) {
   if (!html) return '';
   const t = document.createElement('div');
@@ -126,7 +135,11 @@ function sanitize(html) {
             c.remove();
           } else {
             [...c.attributes].forEach(a => { if (!okA[a.name]) c.removeAttribute(a.name); });
-            if (c.tagName === 'A') { c.setAttribute('target', '_blank'); c.setAttribute('rel', 'noopener'); }
+            if (c.tagName === 'A') {
+              const href = c.getAttribute('href') || '';
+              if (href && !_isSafeHref(href)) c.setAttribute('href', '#');
+              c.setAttribute('target', '_blank'); c.setAttribute('rel', 'noopener');
+            }
             w(c);
           }
         }

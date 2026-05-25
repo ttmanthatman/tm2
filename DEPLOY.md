@@ -1,5 +1,22 @@
 # 部署与更新指南
 
+## 推荐: 一键部署 / 更新
+
+全新服务器、已有 git 部署目录更新，都可以用同一个脚本:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ttmanthatman/tm2/main/one-click-deploy.sh | sudo bash
+```
+
+可选环境变量:
+
+```bash
+APP_DIR=/var/www/teamchat PORT=3000 PM2_NAME=teamchat DOMAIN=chat.example.com \
+  curl -fsSL https://raw.githubusercontent.com/ttmanthatman/tm2/main/one-click-deploy.sh | sudo bash
+```
+
+脚本会安装系统依赖和 Node.js、拉取仓库、安装 npm 依赖、首次创建管理员、启动 PM2、配置 Nginx，并做本机健康检查。已有 `database.sqlite` 时不会重置用户和聊天数据。
+
 ## 你已有的服务器(从老 bushu-43.sh 装的) → 切换到 git 模式
 
 老脚本是把代码全 inline 在 shell 里的,要切到 GitHub 部署需要把现有目录"git 化"一次。**整个过程不丢数据**——`database.sqlite`、`uploads/`、`avatars/`、`backgrounds/`、`.jwt_secret`、`.vapid_keys` 全部保留。

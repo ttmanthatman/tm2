@@ -121,11 +121,29 @@ npm install
 # 2. 启动开发服务器(自动重启)
 npm run dev
 
-# 3. 访问
+# 3. 首次本地开发先创建管理员
+npm run init-admin
+
+# 4. 访问
 open http://localhost:3000
 ```
 
 部署相关参考 [DEPLOY.md](./DEPLOY.md),一键脚本见 `install-from-git.sh`。
+
+## 🚀 一键部署
+
+全新服务器或已有部署更新都可以用同一个脚本:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ttmanthatman/tm2/main/one-click-deploy.sh | sudo bash
+```
+
+常用定制:
+
+```bash
+APP_DIR=/var/www/teamchat PORT=3000 PM2_NAME=teamchat DOMAIN=chat.example.com \
+  curl -fsSL https://raw.githubusercontent.com/ttmanthatman/tm2/main/one-click-deploy.sh | sudo bash
+```
 
 ---
 

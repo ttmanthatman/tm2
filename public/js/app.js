@@ -40,6 +40,90 @@ const App = {
     const emojiCategories = Vue.computed(function() { return EmojiRegistry.categories; });
     function emojiByCategory(key) { return EmojiRegistry.byCategory(key); }
 
+    /* ===== 受保护附件: 用 Authorization 拉取为 object URL ===== */
+    const mediaUrls = ref({});
+    const mediaLoading = new Set();
+
+    function _mediaKey(kind, filename) {
+      return kind + ':' + filename;
+    }
+
+    function _mediaEndpoint(kind, filename) {
+      return API + '/api/files/' + encodeURIComponent(kind) + '/' + encodeURIComponent(filename);
+    }
+
+    async function _loadMediaUrl(kind, filename) {
+      if (!filename || !store.token) return '';
+      const key = _mediaKey(kind, filename);
+      if (mediaUrls.value[key] || mediaLoading.has(key)) return mediaUrls.value[key] || '';
+      mediaLoading.add(key);
+      try {
+        const r = await fetch(_mediaEndpoint(kind, filename), { headers: authH() });
+        if (r.status === 401) { clearAuth(); return ''; }
+        if (!r.ok) return '';
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        mediaUrls.value = Object.assign({}, mediaUrls.value, { [key]: url });
+        return url;
+      } catch(e) {
+        return '';
+      } finally {
+        mediaLoading.delete(key);
+      }
+    }
+
+    function mediaUrl(kind, filename) {
+      if (!filename) return '';
+      const key = _mediaKey(kind, filename);
+      if (mediaUrls.value[key]) return mediaUrls.value[key];
+      _loadMediaUrl(kind, filename);
+      return '';
+    }
+
+    async function downloadProtectedFile(kind, filename, downloadName) {
+      if (!filename) return;
+      try {
+        const r = await fetch(_mediaEndpoint(kind, filename), { headers: authH() });
+        if (!r.ok) throw new Error('download failed');
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = downloadName || filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      } catch(e) {
+        alert('下载失败');
+      }
+    }
+
+    async function downloadZip(ids) {
+      if (!ids || !ids.length) return;
+      try {
+        const r = await fetch(API + '/api/admin/uploads/download-zip', {
+          method: 'POST',
+          headers: authH({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ ids })
+        });
+        if (!r.ok) throw new Error('download failed');
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'teamchat-files.zip';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      } catch(e) {
+        alert('下载失败');
+      }
+    }
+
+    function clearMediaUrls() {
+      Object.values(mediaUrls.value).forEach(url => URL.revokeObjectURL(url));
+      mediaUrls.value = {};
+      mediaLoading.clear();
+    }
+
     /* ===== @-Mention Autocomplete ===== */
     const mentionShow = ref(false);
     const mentionList = ref([]);
@@ -286,6 +370,7 @@ function onMsgInput(e) {
 
     function logout() {
       if (socket) { socket.disconnect(); socket = null; }
+      clearMediaUrls();
       clearAuth();
       page.value = 'login';
     }
@@ -395,6 +480,7 @@ function onMsgInput(e) {
       uploadFile, uploadFiles, sendChain, joinChain, parseChain, loadMore, showCtx, setReply,
       switchChannel: async (id) => { sidebarOpen.value = false; await switchChannel(id); },
       store, msgStore, API, esc, fmtTime, fmtSize, avatarUrl, sanitize,
+      mediaUrl, downloadProtectedFile, downloadZip,
       togglePush, checkPush,
       mentionShow, mentionList, mentionIdx, selectMention,
       onMemberClick, closeMembersPanel,
@@ -471,13 +557,13 @@ function onMsgInput(e) {
               <div v-if="m.reply_to" class="reply-ref">{{getReplyPreview(m.reply_to)}}</div>
               <div v-if="m.type==='text'&&m.content&&m.content.startsWith('[CHAIN]')" v-html="renderChain(m)"></div>
               <div v-else-if="m.type==='text'" class="msg-content" v-html="sanitize(m.content)"></div>
-              <img v-else-if="m.type==='image'" class="chat-image" :src="API+'/uploads/'+encodeURIComponent(m.file_path)" :alt="m.file_name" @click="currentModal='imagePreview';modalData={src:API+'/uploads/'+encodeURIComponent(m.file_path)}">
-              <div v-else-if="m.type==='file'" class="file-card" @click="downloadFile(API+'/uploads/'+encodeURIComponent(m.file_path),m.file_name)">📄 {{m.file_name}} ({{fmtSize(m.file_size)}})</div>
+              <img v-else-if="m.type==='image'" class="chat-image" :src="mediaUrl('uploads',m.file_path)" :alt="m.file_name" @click="currentModal='imagePreview';modalData={src:mediaUrl('uploads',m.file_path)}">
+              <div v-else-if="m.type==='file'" class="file-card" @click="downloadProtectedFile('uploads',m.file_path,m.file_name)">📄 {{m.file_name}} ({{fmtSize(m.file_size)}})</div>
               <div v-else-if="m.type==='voice'" class="voice-card">
                 <button class="voice-play-btn" @click.stop="$event.target.closest('.voice-card').querySelector('audio').paused?$event.target.closest('.voice-card').querySelector('audio').play():$event.target.closest('.voice-card').querySelector('audio').pause()">
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                 </button>
-                <audio :src="API+'/voices/'+encodeURIComponent(m.file_path)" preload="metadata" @play="$event.target.closest('.voice-card').classList.add('playing')" @pause="$event.target.closest('.voice-card').classList.remove('playing')" @ended="$event.target.closest('.voice-card').classList.remove('playing')"></audio>
+                <audio :src="mediaUrl('voices',m.file_path)" preload="metadata" @play="$event.target.closest('.voice-card').classList.add('playing')" @pause="$event.target.closest('.voice-card').classList.remove('playing')" @ended="$event.target.closest('.voice-card').classList.remove('playing')"></audio>
                 <div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
                 <span class="voice-dur">{{fmtDuration(m.duration)}}</span>
               </div>
@@ -914,13 +1000,13 @@ function onMsgInput(e) {
       <div v-if="!(modalData.files||[]).length" class="fm-empty">暂无附件</div>
       <div v-for="f in modalData.files||[]" :key="f.id" class="fm-row" :class="{sel:isFileSel(f.id),missing:!f.exists}" @click="toggleFileSel(f.id)">
         <input type="checkbox" :checked="isFileSel(f.id)" @click.stop="toggleFileSel(f.id)">
-        <img v-if="f.type==='image' && f.exists" class="fm-thumb is-img" :src="API+'/uploads/'+encodeURIComponent(f.file_path)" alt="">
+        <img v-if="f.type==='image' && f.exists" class="fm-thumb is-img" :src="mediaUrl('uploads',f.file_path)" alt="">
         <div v-else class="fm-thumb">{{fileIcon(f)}}</div>
         <div class="fm-info">
           <div class="fm-name" :title="f.file_name">{{f.type==='voice'?'🎤 语音消息 ('+fmtDuration(f.duration)+')':f.file_name}}</div>
           <div class="fm-meta">{{fmtSize(f.file_size)}} · {{f.nickname||f.username}} · #{{f.channel_name||f.channel_id}} · {{fmtTime(f.created_at)}}</div>
         </div>
-        <a v-if="f.exists" class="fm-action" :href="(f.type==='voice'?API+'/voices/':API+'/uploads/')+encodeURIComponent(f.file_path)" :download="f.file_name" @click.stop="">下载</a>
+        <a v-if="f.exists" class="fm-action" href="#" @click.prevent.stop="downloadProtectedFile(f.type==='voice'?'voices':'uploads',f.file_path,f.file_name)">下载</a>
       </div>
     </div>
     <p v-if="modalData.filesMsg" style="font-size:13px;text-align:center;margin-top:10px">{{modalData.filesMsg}}</p>

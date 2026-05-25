@@ -5,9 +5,9 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
-const { db } = require("../database");
+const { db, canAccessChannel } = require("../database");
 const { authMiddleware, adminMiddleware } = require("../middleware");
-const { UPLOAD_DIR } = require("../config");
+const { UPLOAD_DIR, VOICE_DIR } = require("../config");
 
 const router = express.Router();
 
@@ -92,11 +92,12 @@ router.delete("/channels/:id", authMiddleware, adminMiddleware, (req, res) => {
 
   /* 清理磁盘上的附件 */
   const files = db.prepare(
-    "SELECT file_path FROM messages WHERE channel_id=? AND file_path IS NOT NULL AND file_path != ''"
+    "SELECT type, file_path FROM messages WHERE channel_id=? AND file_path IS NOT NULL AND file_path != ''"
   ).all(ch.id);
   files.forEach(f => {
-    const abs = path.join(UPLOAD_DIR, f.file_path);
-    if (abs.startsWith(UPLOAD_DIR + path.sep)) {
+    const dir = f.type === "voice" ? VOICE_DIR : UPLOAD_DIR;
+    const abs = path.join(dir, f.file_path);
+    if (abs.startsWith(dir + path.sep)) {
       try { fs.unlinkSync(abs); } catch(e) {}
     }
   });
@@ -112,9 +113,13 @@ router.delete("/channels/:id", authMiddleware, adminMiddleware, (req, res) => {
 
 /* ===== 频道成员管理 ===== */
 router.get("/channels/:id/members", authMiddleware, (req, res) => {
+  const chId = parseInt(req.params.id);
+  if (!chId || !canAccessChannel(req.user.userId, chId)) {
+    return res.status(403).json({ success: false, message: "无权访问此频道" });
+  }
   res.json(db.prepare(
     "SELECT cm.*, u.username, u.nickname, u.avatar FROM channel_members cm JOIN users u ON cm.user_id = u.id WHERE cm.channel_id = ?"
-  ).all(req.params.id));
+  ).all(chId));
 });
 
 router.post("/channels/:id/members", authMiddleware, adminMiddleware, (req, res) => {

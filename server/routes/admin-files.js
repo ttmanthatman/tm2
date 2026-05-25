@@ -96,20 +96,10 @@ router.post("/admin/uploads/delete", authMiddleware, adminMiddleware, (req, res)
   });
 });
 
-/* 批量打包下载 (zip): GET /api/admin/uploads/download-zip?ids=1,2,3&token=... */
-router.get("/admin/uploads/download-zip", (req, res) => {
-  /* 浏览器 <a download> 不带 Authorization header,改为 query token 校验 */
-  const jwt = require("jsonwebtoken");
-  const { JWT_SECRET } = require("../config");
-  const token = req.query.token || req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ success: false, message: "未提供认证" });
-  let decoded;
-  try { decoded = jwt.verify(token, JWT_SECRET); }
-  catch (e) { return res.status(401).json({ success: false, message: "认证失败" }); }
-  if (!decoded.isAdmin) return res.status(403).json({ success: false, message: "需要管理员权限" });
-
-  const ids = String(req.query.ids || "")
-    .split(",").map(s => parseInt(s.trim()))
+/* 批量打包下载 (zip): POST /api/admin/uploads/download-zip body={ids:[...]} */
+router.post("/admin/uploads/download-zip", authMiddleware, adminMiddleware, (req, res) => {
+  const ids = (Array.isArray(req.body?.ids) ? req.body.ids : [])
+    .map(s => parseInt(s))
     .filter(n => Number.isInteger(n) && n > 0);
   if (!ids.length) return res.status(400).json({ success: false, message: "未选择文件" });
 
